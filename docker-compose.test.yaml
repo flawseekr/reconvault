@@ -1,0 +1,73 @@
+# Runs the full test suite (unit + integration) inside containers:
+#
+#   docker compose -f docker-compose.test.yaml run --rm --build tests
+#   docker compose -f docker-compose.test.yaml down -v
+name: reconvault-test
+
+services:
+  test-db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: reconvault_test
+      POSTGRES_USER: reconvault
+      POSTGRES_PASSWORD: reconvault
+    tmpfs:
+      - /var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U reconvault -d reconvault_test"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+  tests:
+    image: golang:1.27-alpine
+    working_dir: /src
+    depends_on:
+      test-db:
+        condition: service_healthy
+    environment:
+      CGO_ENABLED: "0"
+      TEST_DATABASE_URL: postgres://reconvault:reconvault@test-db:5432/reconvault_test?sslmode=disable
+    volumes:
+      - ./reconvault-api:/src
+      - gomod:/go/pkg/mod
+      - gocache:/root/.cache/go-build
+    command: ["sh", "-c", "test -z \"$$(gofmt -l .)\" || { echo \"gofmt needed:\"; gofmt -l .; exit 1; }; go vet ./... && go test -count=1 -p 1 ./..."]
+
+  # DNS autoscan service: gofmt, vet, unit and PostgreSQL integration tests.
+  #   docker compose -f docker-compose.test.yaml run --rm dns-autoscan-tests
+  dns-autoscan-tests:
+    image: golang:1.27-alpine
+    working_dir: /src
+    depends_on:
+      test-db:
+        condition: service_healthy
+    environment:
+      CGO_ENABLED: "0"
+      TEST_DATABASE_URL: postgres://reconvault:reconvault@test-db:5432/reconvault_test?sslmode=disable
+    volumes:
+      - ./reconvault-dns-autoscan:/src:ro
+      - gomod:/go/pkg/mod
+      - gocache:/root/.cache/go-build
+    command: ["sh", "-c", "test -z \"$$(gofmt -l .)\" || { echo \"gofmt needed:\"; gofmt -l .; exit 1; }; go vet ./... && go test -count=1 -p 1 ./..."]
+
+  # Dashboard: typecheck, lint, unit/component tests and production build.
+  #   docker compose -f docker-compose.test.yaml run --rm dashboard-tests
+  dashboard-tests:
+    image: node:24-alpine
+    volumes:
+      # Read-only source, copied into the container: the run never writes
+      # into the host tree (no root-owned node_modules or dist).
+      - ./reconvault-dashboard:/src:ro
+      - npmcache:/root/.npm
+    command:
+      - sh
+      - -c
+      - >-
+        mkdir /app && tar -C /src --exclude=./node_modules --exclude=./dist -cf - . | tar -C /app -xf - &&
+        cd /app && npm ci --no-audit --no-fund && npm run check
+
+volumes:
+  gomod:
+  gocache:
+  npmcache:

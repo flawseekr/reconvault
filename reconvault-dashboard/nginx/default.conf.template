@@ -1,0 +1,80 @@
+# Rendered at container start by the nginx image's envsubst entrypoint;
+# only ${API_UPSTREAM} is substituted.
+# This server is the single public entrypoint: it serves the dashboard and
+# proxies the API (/api/v1, /readyz, /swagger.json) from the same host.
+# Access log without query strings or referers: search terms (?q=...) may be
+# secrets, as they are in the API's own logs. $request_path is the requested
+# path as sent, with everything from "?" removed.
+map $request_uri $request_path {
+    "~^(?<path>[^?]*)" $path;
+}
+log_format reconvault '$remote_addr [$time_local] "$request_method $request_path $server_protocol" '
+                      '$status $body_bytes_sent $request_time "$http_user_agent"';
+
+server {
+    listen 0.0.0.0:8080;
+    server_name _;
+    server_tokens off;
+    access_log /dev/stdout reconvault;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # The API accepts request bodies up to 2 MiB (MAX_REQUEST_BYTES).
+    client_max_body_size 2m;
+
+    gzip on;
+    gzip_types text/css application/javascript application/json image/svg+xml;
+    gzip_min_length 1024;
+
+    # Same-origin API access: the browser never needs CORS, and the API
+    # container is not published, so it is reachable only through here.
+    # The whole /api/ prefix is proxied so unknown API paths get JSON errors
+    # from the API instead of the SPA shell.
+    location /api/ {
+        proxy_pass ${API_UPSTREAM};
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        # Must exceed the API's UPSTREAM_TIMEOUT plus its own processing.
+        proxy_read_timeout 120s;
+        proxy_send_timeout 120s;
+        # The API sets its own, stricter security headers on JSON responses.
+    }
+
+    # The API moved from /v1 to /api/v1; fail stale clients loudly instead of
+    # answering with the SPA shell.
+    location /v1/ {
+        return 404;
+    }
+
+    # Readiness of the API and its database, for load balancers and the
+    # dashboard's status indicator.
+    location = /readyz {
+        proxy_pass ${API_UPSTREAM};
+        proxy_read_timeout 10s;
+    }
+
+    # OpenAPI 3 description of the API (no key required).
+    location = /swagger.json {
+        proxy_pass ${API_UPSTREAM};
+        proxy_read_timeout 10s;
+    }
+
+    # Content-hashed build output: cache forever.
+    location /assets/ {
+        try_files $uri =404;
+        add_header Cache-Control "public, max-age=31536000, immutable" always;
+        include /etc/nginx/snippets/security-headers.conf;
+    }
+
+    # Client-side routes (/search, /host/:hostname, /subdomain/:root_domain,
+    # /http/:id) all serve the SPA shell so direct navigation and refreshes
+    # work.
+    location / {
+        try_files $uri /index.html;
+        add_header Cache-Control "no-cache" always;
+        include /etc/nginx/snippets/security-headers.conf;
+    }
+}

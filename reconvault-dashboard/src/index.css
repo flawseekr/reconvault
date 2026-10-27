@@ -1,0 +1,126 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * Dark-first palette: charcoal/slate surfaces, one cyan accent, and
+ * semantic colors reserved for HTTP status classes and methods.
+ */
+:root {
+  --radius: 0.5rem;
+
+  --background: oklch(0.17 0.012 255);
+  --foreground: oklch(0.93 0.008 255);
+  --card: oklch(0.205 0.013 255);
+  --card-foreground: oklch(0.93 0.008 255);
+  --popover: oklch(0.22 0.014 255);
+  --popover-foreground: oklch(0.93 0.008 255);
+  --primary: oklch(0.79 0.13 210);
+  --primary-foreground: oklch(0.18 0.03 230);
+  --secondary: oklch(0.255 0.014 255);
+  --secondary-foreground: oklch(0.9 0.008 255);
+  --muted: oklch(0.24 0.013 255);
+  --muted-foreground: oklch(0.68 0.015 255);
+  --accent: oklch(0.27 0.016 255);
+  --accent-foreground: oklch(0.95 0.008 255);
+  --destructive: oklch(0.66 0.19 22);
+  --border: oklch(0.29 0.014 255);
+  --input: oklch(0.31 0.015 255);
+  --ring: oklch(0.79 0.13 210);
+
+  --sidebar: oklch(0.185 0.013 255);
+  --sidebar-border: oklch(0.27 0.014 255);
+
+  /* Semantic: HTTP status classes */
+  --status-2xx: oklch(0.76 0.15 158);
+  --status-3xx: oklch(0.76 0.12 230);
+  --status-4xx: oklch(0.8 0.14 75);
+  --status-5xx: oklch(0.7 0.18 22);
+  --status-none: oklch(0.62 0.015 255);
+
+  /* Semantic: HTTP methods */
+  --method-get: oklch(0.76 0.12 230);
+  --method-post: oklch(0.76 0.15 158);
+  --method-put: oklch(0.8 0.14 75);
+  --method-patch: oklch(0.74 0.14 300);
+  --method-delete: oklch(0.7 0.18 22);
+  --method-other: oklch(0.7 0.015 255);
+
+  /* JSON syntax */
+  --syntax-key: oklch(0.78 0.11 230);
+  --syntax-string: oklch(0.78 0.13 150);
+  --syntax-number: oklch(0.8 0.13 70);
+  --syntax-literal: oklch(0.74 0.14 300);
+  --syntax-punct: oklch(0.6 0.015 255);
+}
+
+@theme inline {
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "JetBrains Mono", "SFMono-Regular", "Cascadia Code", Menlo, Consolas, "Liberation Mono", monospace;
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-border: var(--sidebar-border);
+
+  --color-status-2xx: var(--status-2xx);
+  --color-status-3xx: var(--status-3xx);
+  --color-status-4xx: var(--status-4xx);
+  --color-status-5xx: var(--status-5xx);
+  --color-status-none: var(--status-none);
+  --color-method-get: var(--method-get);
+  --color-method-post: var(--method-post);
+  --color-method-put: var(--method-put);
+  --color-method-patch: var(--method-patch);
+  --color-method-delete: var(--method-delete);
+  --color-method-other: var(--method-other);
+  --color-syntax-key: var(--syntax-key);
+  --color-syntax-string: var(--syntax-string);
+  --color-syntax-number: var(--syntax-number);
+  --color-syntax-literal: var(--syntax-literal);
+  --color-syntax-punct: var(--syntax-punct);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    color-scheme: dark;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-feature-settings: "cv11", "ss01";
+  }
+  ::selection {
+    background: color-mix(in oklch, var(--primary) 35%, transparent);
+  }
+}
+
+@layer utilities {
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+}

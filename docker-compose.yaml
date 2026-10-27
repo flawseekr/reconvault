@@ -1,0 +1,144 @@
+name: reconvault
+
+services:
+  db:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-reconvault}
+      POSTGRES_USER: ${POSTGRES_USER:-reconvault}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set (see .env.example)}
+    volumes:
+      # PostgreSQL 18+ images keep data under /var/lib/postgresql/<major>.
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks:
+      - backend
+    # Not published to the host: only the API can reach the database.
+
+  api:
+    build:
+      context: ./reconvault-api
+    image: reconvault-api:latest
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # All interfaces inside the container; not published to the host.
+      HTTP_ADDR: "0.0.0.0:8080"
+      # The password is embedded in a URL; use URL-safe characters only.
+      DATABASE_URL: postgres://${POSTGRES_USER:-reconvault}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-reconvault}?sslmode=${POSTGRES_SSLMODE:-disable}
+      DB_MAX_CONNS: ${DB_MAX_CONNS:-10}
+      API_KEY: ${API_KEY:?API_KEY must be set (see .env.example)}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      UPSTREAM_TIMEOUT: ${UPSTREAM_TIMEOUT:-30s}
+      MAX_REQUEST_BYTES: ${MAX_REQUEST_BYTES:-2097152}
+      MAX_RESPONSE_BODY_BYTES: ${MAX_RESPONSE_BODY_BYTES:-10485760}
+      ALLOW_PRIVATE_NETWORKS: ${ALLOW_PRIVATE_NETWORKS:-false}
+      SHUTDOWN_TIMEOUT: ${SHUTDOWN_TIMEOUT:-15s}
+    # No published ports: clients reach the API through the dashboard's
+    # nginx under /api/v1 (single host).
+    healthcheck:
+      test: ["CMD", "/reconvault-api", "healthcheck"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - backend
+      - egress
+      - frontend
+
+  dns-autoscan:
+    build:
+      context: ./reconvault-dns-autoscan
+    image: reconvault-dns-autoscan:latest
+    restart: unless-stopped
+    depends_on:
+      # The API's migrations create http_artifacts, which this service reads.
+      api:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-reconvault}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-reconvault}?sslmode=${POSTGRES_SSLMODE:-disable}
+      DB_MAX_CONNS: ${AUTOSCAN_DB_MAX_CONNS:-10}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      DNS_RESOLVERS: ${DNS_RESOLVERS:-1.1.1.1:53,8.8.8.8:53,9.9.9.9:53}
+      DNS_TIMEOUT: ${DNS_TIMEOUT:-5s}
+      DNS_RETRIES: ${DNS_RETRIES:-2}
+      ACTIVE_INTERVAL: ${AUTOSCAN_ACTIVE_INTERVAL:-1m}
+      BATCH_SIZE: ${AUTOSCAN_BATCH_SIZE:-100}
+      SCAN_CONCURRENCY: ${AUTOSCAN_CONCURRENCY:-16}
+      HTTP_PROBE_TIMEOUT: ${AUTOSCAN_HTTP_PROBE_TIMEOUT:-10s}
+      ALLOW_PRIVATE_NETWORKS: ${ALLOW_PRIVATE_NETWORKS:-false}
+      SHUTDOWN_TIMEOUT: ${AUTOSCAN_SHUTDOWN_TIMEOUT:-30s}
+    healthcheck:
+      test: ["CMD", "/reconvault-dns-autoscan", "healthcheck"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      # Database access, plus outbound DNS and HTTP for scanning.
+      - backend
+      - egress
+
+  dashboard:
+    build:
+      context: ./reconvault-dashboard
+    image: reconvault-dashboard:latest
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      API_UPSTREAM: http://api:8080
+    ports:
+      # The single public entrypoint: dashboard at /, API at /api/v1.
+      # Binds all host interfaces by default. Plain HTTP: terminate TLS in
+      # front of it (load balancer or host proxy) for public deployments.
+      - "${APP_BIND:-0.0.0.0}:${APP_PORT:-8080}:8080"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:8080/"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    read_only: true
+    tmpfs:
+      # nginx writes its rendered config, pid and temp files here.
+      - /etc/nginx/conf.d:uid=101,gid=101
+      - /tmp:uid=101,gid=101
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - frontend
+
+networks:
+  # Internal network: no route to the outside world.
+  backend:
+    internal: true
+  # Outbound access for the API's HTTP request module.
+  egress: {}
+  # nginx -> API traffic only.
+  frontend: {}
+
+volumes:
+  pgdata:

@@ -1,0 +1,1731 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "ReconVault API",
+    "version": "1.0.0",
+    "description": "Executes HTTP requests on demand and records every request and response in PostgreSQL for browsing, per-domain aggregation and full-field secret search. Every /api/v1 endpoint requires `Authorization: Bearer <API_KEY>`. Errors use the `Error` envelope. See docs/API.md for details."
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "Same origin: the docker compose entrypoint serves the API under /api/v1"
+    }
+  ],
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "tags": [
+    {
+      "name": "Requests",
+      "description": "Execute and record HTTP requests."
+    },
+    {
+      "name": "Artifacts",
+      "description": "Browse, search and delete recorded artifacts."
+    },
+    {
+      "name": "Domains",
+      "description": "Per-hostname aggregates."
+    },
+    {
+      "name": "Recon",
+      "description": "Read-only views of the domains and dns_records tables populated by reconvault-dns-autoscan."
+    },
+    {
+      "name": "Health",
+      "description": "Unauthenticated probes."
+    },
+    {
+      "name": "Meta",
+      "description": "API description."
+    }
+  ],
+  "paths": {
+    "/healthz": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "summary": "Liveness probe",
+        "operationId": "healthz",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "The process is serving HTTP.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Status"
+                },
+                "example": {
+                  "status": "ok"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/readyz": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "summary": "Readiness probe (database reachable)",
+        "operationId": "readyz",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Ready.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Status"
+                },
+                "example": {
+                  "status": "ok"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Database unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "unavailable": {
+                    "value": {
+                      "error": {
+                        "code": "service_unavailable",
+                        "message": "database unavailable"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/swagger.json": {
+      "get": {
+        "tags": [
+          "Meta"
+        ],
+        "summary": "This OpenAPI document",
+        "operationId": "openAPISpec",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "OpenAPI 3.0 document.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/http/request": {
+      "post": {
+        "tags": [
+          "Requests"
+        ],
+        "summary": "Execute an HTTP request and record it",
+        "operationId": "executeRequest",
+        "description": "Sends the request and stores request and response as an artifact. Redirects are not followed; no compression is negotiated; requests to non-public addresses are refused (SSRF protection, checked on the resolved IP). Transport failures after the request was attempted are recorded with null response fields and reported as 502/504 with `artifact_id`. Validation failures and blocked destinations are not recorded. TLS certificate errors are always ignored: self-signed, expired, untrusted and hostname-mismatched certificates and TLS 1.0/1.1 servers are recorded like any other target.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExecuteRequest"
+              },
+              "examples": {
+                "post": {
+                  "summary": "POST with headers and body",
+                  "value": {
+                    "method": "POST",
+                    "url": "https://api.example.com/v1/resource",
+                    "headers": {
+                      "Content-Type": "application/json"
+                    },
+                    "body": "{\"id\":123,\"name\":\"test\"}"
+                  }
+                },
+                "get": {
+                  "summary": "Plain GET",
+                  "value": {
+                    "method": "GET",
+                    "url": "https://example.com"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Request executed and recorded.",
+            "headers": {
+              "Location": {
+                "description": "URL of the stored artifact.",
+                "schema": {
+                  "type": "string",
+                  "example": "/api/v1/http/artifacts/550e8400-e29b-41d4-a716-446655440000"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExecuteResponse"
+                },
+                "example": {
+                  "id": "550e8400-e29b-41d4-a716-446655440000",
+                  "http_method": "POST",
+                  "hostname": "api.example.com",
+                  "endpoint_path": "/v1/resource",
+                  "full_url": "https://api.example.com/v1/resource",
+                  "requested_at": "2026-10-27T12:30:00.123456Z",
+                  "response_status_code": 200,
+                  "response_content_type": "application/json",
+                  "response_body_size_bytes": 16,
+                  "request_headers": {
+                    "Content-Type": "application/json",
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36"
+                  },
+                  "request_body": "{\"id\":123,\"name\":\"test\"}",
+                  "response": "HTTP/1.1 200 OK\r\nContent-Length: 16\r\nContent-Type: application/json\r\nDate: Tue, 27 Oct 2026 12:30:00 GMT\r\n\r\n{\"success\":true}",
+                  "response_body_truncated": false
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "description": "The target resolves to a non-public address.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "blocked": {
+                    "value": {
+                      "error": {
+                        "code": "destination_not_allowed",
+                        "message": "the target resolves to a non-public address, which is not allowed"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body exceeds MAX_REQUEST_BYTES.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "too_large": {
+                    "value": {
+                      "error": {
+                        "code": "payload_too_large",
+                        "message": "request body must not exceed 2097152 bytes"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Content-Type is not application/json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "media_type": {
+                    "value": {
+                      "error": {
+                        "code": "unsupported_media_type",
+                        "message": "Content-Type must be application/json"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "502": {
+            "description": "The target could not be reached (DNS, connection, TLS handshake, protocol). The attempt is recorded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "failed": {
+                    "value": {
+                      "error": {
+                        "code": "upstream_request_failed",
+                        "message": "the upstream request failed",
+                        "artifact_id": "89cb559a-bdf4-4592-898e-9039bb62fdce"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "The target did not respond within UPSTREAM_TIMEOUT. The attempt is recorded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "timeout": {
+                    "value": {
+                      "error": {
+                        "code": "upstream_timeout",
+                        "message": "the upstream request timed out",
+                        "artifact_id": "89cb559a-bdf4-4592-898e-9039bb62fdce"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/http/artifacts": {
+      "get": {
+        "tags": [
+          "Artifacts"
+        ],
+        "summary": "List artifacts (sorting, hostname filter, cursor pagination)",
+        "operationId": "listArtifacts",
+        "description": "Keyset pagination: when `meta.next_cursor` is non-null, pass it as `cursor` to get the next page. The cursor carries sort_by, sort_order and hostname; explicit values that contradict it are rejected. Ties are broken by `id` in the same direction; NULLs sort last for ASC and first for DESC.",
+        "parameters": [
+          {
+            "name": "sort_by",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "http_method",
+                "full_url",
+                "response_status_code",
+                "response_content_type",
+                "response_body_size_bytes",
+                "requested_at"
+              ],
+              "default": "requested_at"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/SortOrder"
+          },
+          {
+            "name": "hostname",
+            "in": "query",
+            "description": "Exact hostname filter (case-insensitive, 1-255 characters).",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255
+            },
+            "example": "api.example.com"
+          },
+          {
+            "$ref": "#/components/parameters/Limit"
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "description": "Opaque `meta.next_cursor` from the previous page.",
+            "schema": {
+              "type": "string",
+              "maxLength": 16384
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "One page of artifacts.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArtifactList"
+                },
+                "example": {
+                  "data": [
+                    {
+                      "id": "550e8400-e29b-41d4-a716-446655440000",
+                      "http_method": "POST",
+                      "full_url": "https://api.example.com/v1/resource",
+                      "response_status_code": 200,
+                      "response_content_type": "application/json",
+                      "response_body_size_bytes": 16,
+                      "requested_at": "2026-10-27T12:30:00.123456Z"
+                    }
+                  ],
+                  "meta": {
+                    "sort_by": "requested_at",
+                    "sort_order": "DESC",
+                    "hostname": "api.example.com",
+                    "limit": 1,
+                    "next_cursor": "eyJzIjoicmVxdWVzdGVkX2F0IiwibyI6IkRFU0MiLCJoIjoiYXBpLmV4YW1wbGUuY29tIiwidiI6IjIwMjYtMTAtMjdUMTQ6MDE6NDIuNjI5MDI3WiIsImkiOiIxNWY5MzY4MS0yNjFmLTQ1NzEtODkxOS04ZTdmYmQ2N2FhMWUifQ"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/api/v1/http/artifacts/search": {
+      "get": {
+        "tags": [
+          "Artifacts"
+        ],
+        "summary": "Case-insensitive substring search across all fields",
+        "operationId": "searchArtifacts",
+        "description": "Matches every column, including request headers (keys and values), request body and the raw response (response headers and body). `%`, `_` and `\\` are matched literally. Results are newest first and contain metadata only.",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "description": "Search keyword: 1-1024 bytes of UTF-8, not blank, no control characters.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1024
+            },
+            "example": "secret"
+          },
+          {
+            "$ref": "#/components/parameters/Limit"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Matching artifacts.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchResponse"
+                },
+                "example": {
+                  "data": [
+                    {
+                      "id": "550e8400-e29b-41d4-a716-446655440000",
+                      "http_method": "POST",
+                      "hostname": "api.example.com",
+                      "endpoint_path": "/v1/resource",
+                      "full_url": "https://api.example.com/v1/resource",
+                      "requested_at": "2026-10-27T12:30:00Z",
+                      "response_status_code": 200,
+                      "response_content_type": "application/json",
+                      "response_body_size_bytes": 128
+                    }
+                  ],
+                  "meta": {
+                    "query": "secret",
+                    "limit": 30
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/api/v1/http/artifacts/{id}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/ArtifactId"
+        }
+      ],
+      "get": {
+        "tags": [
+          "Artifacts"
+        ],
+        "summary": "Get one artifact with all fields",
+        "operationId": "getArtifact",
+        "responses": {
+          "200": {
+            "description": "The artifact.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Artifact"
+                },
+                "example": {
+                  "id": "550e8400-e29b-41d4-a716-446655440000",
+                  "http_method": "POST",
+                  "hostname": "api.example.com",
+                  "endpoint_path": "/v1/resource",
+                  "full_url": "https://api.example.com/v1/resource",
+                  "requested_at": "2026-10-27T12:30:00Z",
+                  "response_status_code": 200,
+                  "response_content_type": "application/json",
+                  "response_body_size_bytes": 16,
+                  "request_headers": {
+                    "Content-Type": "application/json"
+                  },
+                  "request_body": "{\"id\":123,\"name\":\"test\"}",
+                  "response": "HTTP/1.1 200 OK\r\nContent-Length: 16\r\nContent-Type: application/json\r\nDate: Tue, 27 Oct 2026 12:30:00 GMT\r\n\r\n{\"success\":true}"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Artifacts"
+        ],
+        "summary": "Permanently delete an artifact",
+        "operationId": "deleteArtifact",
+        "description": "Removes the row from http_artifacts. There is no soft delete and no restore.",
+        "responses": {
+          "204": {
+            "description": "Deleted (empty body)."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/api/v1/http/domains": {
+      "get": {
+        "tags": [
+          "Domains"
+        ],
+        "summary": "Per-hostname artifact counts",
+        "operationId": "listDomains",
+        "description": "Ties are ordered by hostname ASC.",
+        "parameters": [
+          {
+            "name": "sort_by",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "total_artifacts",
+                "latest_update"
+              ],
+              "default": "latest_update"
+            },
+            "description": "`total_artifacts` sorts by artifact_count, `latest_update` by last_requested_at."
+          },
+          {
+            "$ref": "#/components/parameters/SortOrder"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000,
+              "default": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Domains.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DomainList"
+                },
+                "example": {
+                  "data": [
+                    {
+                      "hostname": "api.example.com",
+                      "artifact_count": 42,
+                      "last_requested_at": "2026-10-27T14:01:43.760757Z"
+                    }
+                  ],
+                  "meta": {
+                    "sort_by": "latest_update",
+                    "sort_order": "DESC",
+                    "limit": 100
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/api/v1/domains/{hostname}": {
+      "get": {
+        "tags": [
+          "Recon"
+        ],
+        "summary": "Domain info for one hostname",
+        "operationId": "getDomainInfo",
+        "description": "Returns the `domains` row for the hostname (case-insensitive). `asn`, `asn_name` and `waf` are null while unknown.",
+        "parameters": [
+          {
+            "name": "hostname",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 255
+            },
+            "description": "Hostname, trimmed and lower-cased; 1-255 characters, no control characters."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The domain.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DomainInfo"
+                },
+                "example": {
+                  "hostname": "www.example.com",
+                  "root_domain": "example.com",
+                  "asn": 13335,
+                  "asn_name": "CLOUDFLARENET",
+                  "waf": true,
+                  "updated_at": "2026-10-27T12:30:00Z"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "description": "The hostname has not been scanned.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "not_found": {
+                    "value": {
+                      "error": {
+                        "code": "not_found",
+                        "message": "domain not found"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/api/v1/dns_records/{hostname}": {
+      "get": {
+        "tags": [
+          "Recon"
+        ],
+        "summary": "Complete DNS history for one hostname",
+        "operationId": "listDNSRecords",
+        "description": "Every stored record version, unpaginated, newest first (updated_at DESC, then record_type, record_value). An unknown hostname yields an empty list.",
+        "parameters": [
+          {
+            "name": "hostname",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 255
+            },
+            "description": "Hostname, trimmed and lower-cased; 1-255 characters, no control characters."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "DNS history.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DNSRecordList"
+                },
+                "example": {
+                  "data": [
+                    {
+                      "hostname": "www.example.com",
+                      "record_type": "A",
+                      "record_value": "192.0.2.10",
+                      "ttl": 300,
+                      "updated_at": "2026-10-27T12:30:00Z"
+                    }
+                  ],
+                  "meta": {
+                    "hostname": "www.example.com",
+                    "total": 1
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/api/v1/subdomains/{root_domain}": {
+      "get": {
+        "tags": [
+          "Recon"
+        ],
+        "summary": "Distinct hostnames under a root domain",
+        "operationId": "listSubdomains",
+        "description": "Sorted by hostname ASC, unpaginated. `meta.total` always equals the length of `data`.",
+        "parameters": [
+          {
+            "name": "root_domain",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 255
+            },
+            "description": "Root domain, trimmed and lower-cased; 1-255 characters, no control characters."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Subdomains.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubdomainList"
+                },
+                "example": {
+                  "data": [
+                    {
+                      "hostname": "api.example.com"
+                    },
+                    {
+                      "hostname": "www.example.com"
+                    }
+                  ],
+                  "meta": {
+                    "root_domain": "example.com",
+                    "total": 2
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/api/v1/root_domains": {
+      "get": {
+        "tags": [
+          "Recon"
+        ],
+        "summary": "Root domains with unique hostname counts",
+        "operationId": "listRootDomains",
+        "description": "Ordered by hostname_count DESC, then root_domain ASC.",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000,
+              "default": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Root domains.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RootDomainList"
+                },
+                "example": {
+                  "data": [
+                    {
+                      "root_domain": "example.com",
+                      "hostname_count": 2
+                    }
+                  ],
+                  "meta": {
+                    "limit": 100
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "The API_KEY configured on the server (at least 32 characters)."
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "bad_request",
+                  "validation_error",
+                  "unauthorized",
+                  "destination_not_allowed",
+                  "not_found",
+                  "method_not_allowed",
+                  "payload_too_large",
+                  "unsupported_media_type",
+                  "internal_error",
+                  "upstream_request_failed",
+                  "upstream_timeout",
+                  "service_unavailable"
+                ],
+                "description": "Machine-readable error code."
+              },
+              "message": {
+                "type": "string",
+                "description": "Human-readable description."
+              },
+              "field": {
+                "type": "string",
+                "description": "Offending input field (validation errors only)."
+              },
+              "artifact_id": {
+                "type": "string",
+                "format": "uuid",
+                "description": "ID of the recorded failed attempt (upstream errors only)."
+              }
+            }
+          }
+        }
+      },
+      "Status": {
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "example": "ok"
+          }
+        }
+      },
+      "ExecuteRequest": {
+        "type": "object",
+        "required": [
+          "method",
+          "url"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "method": {
+            "type": "string",
+            "description": "Case-insensitive; stored upper-case.",
+            "enum": [
+              "GET",
+              "HEAD",
+              "POST",
+              "PUT",
+              "PATCH",
+              "DELETE",
+              "OPTIONS",
+              "TRACE"
+            ],
+            "example": "POST"
+          },
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "maxLength": 8192,
+            "description": "Absolute http:// or https:// URL; host at most 253 characters. Must resolve to a public address unless ALLOW_PRIVATE_NETWORKS=true.",
+            "example": "https://api.example.com/v1/resource"
+          },
+          "headers": {
+            "type": "object",
+            "maxProperties": 100,
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Header name to value. Names must be RFC 9110 tokens and unique case-insensitively; values must not contain control characters (tab allowed). If User-Agent is absent or empty, the default `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36` is sent. `Host` overrides the Host header.",
+            "example": {
+              "Content-Type": "application/json"
+            },
+            "nullable": true
+          },
+          "body": {
+            "type": "string",
+            "description": "Request body, sent as-is.",
+            "example": "{\"id\":123,\"name\":\"test\"}",
+            "nullable": true
+          }
+        }
+      },
+      "Artifact": {
+        "type": "object",
+        "description": "A recorded request/response exchange (every column of http_artifacts).",
+        "required": [
+          "id",
+          "http_method",
+          "hostname",
+          "endpoint_path",
+          "full_url",
+          "requested_at",
+          "response_status_code",
+          "response_content_type",
+          "response_body_size_bytes",
+          "request_headers",
+          "request_body",
+          "response"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
+          },
+          "http_method": {
+            "type": "string",
+            "example": "POST"
+          },
+          "hostname": {
+            "type": "string",
+            "description": "Lower-cased host without port.",
+            "example": "api.example.com"
+          },
+          "endpoint_path": {
+            "type": "string",
+            "description": "Escaped URL path; `/` when empty.",
+            "example": "/v1/resource"
+          },
+          "full_url": {
+            "type": "string",
+            "example": "https://api.example.com/v1/resource"
+          },
+          "requested_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "RFC 3339, UTC, up to microsecond precision.",
+            "example": "2026-10-27T12:30:00.123456Z"
+          },
+          "response_status_code": {
+            "type": "integer",
+            "example": 200,
+            "description": "Null when the request failed before a response.",
+            "nullable": true
+          },
+          "response_content_type": {
+            "type": "string",
+            "example": "application/json",
+            "nullable": true
+          },
+          "response_body_size_bytes": {
+            "type": "integer",
+            "format": "int64",
+            "example": 16,
+            "description": "Raw size of the response body; the declared Content-Length when the body was truncated.",
+            "nullable": true
+          },
+          "request_headers": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Headers actually sent, including the default User-Agent.",
+            "example": {
+              "Content-Type": "application/json",
+              "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36"
+            },
+            "nullable": true
+          },
+          "request_body": {
+            "type": "string",
+            "example": "{\"id\":123,\"name\":\"test\"}",
+            "nullable": true
+          },
+          "response": {
+            "type": "string",
+            "example": "HTTP/1.1 200 OK\r\nContent-Length: 16\r\nContent-Type: application/json\r\nDate: Tue, 27 Oct 2026 12:30:00 GMT\r\n\r\n{\"success\":true}",
+            "description": "Raw HTTP response: status line, all response headers (canonical names, sorted), blank line, body (at most MAX_RESPONSE_BODY_BYTES), CRLF line endings. Invalid UTF-8 and NUL bytes are replaced with U+FFFD. Artifacts recorded before migration 0004 contain the body only.",
+            "nullable": true
+          }
+        }
+      },
+      "ExecuteResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Artifact"
+          },
+          {
+            "type": "object",
+            "required": [
+              "response_body_truncated"
+            ],
+            "properties": {
+              "response_body_truncated": {
+                "type": "boolean",
+                "description": "True when the response body exceeded MAX_RESPONSE_BODY_BYTES and was truncated."
+              }
+            }
+          }
+        ]
+      },
+      "ArtifactSummary": {
+        "type": "object",
+        "required": [
+          "id",
+          "http_method",
+          "full_url",
+          "response_status_code",
+          "response_content_type",
+          "response_body_size_bytes",
+          "requested_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
+          },
+          "http_method": {
+            "type": "string",
+            "example": "GET"
+          },
+          "full_url": {
+            "type": "string",
+            "example": "https://api.example.com/v1/resource"
+          },
+          "response_status_code": {
+            "type": "integer",
+            "example": 200,
+            "nullable": true
+          },
+          "response_content_type": {
+            "type": "string",
+            "example": "application/json",
+            "nullable": true
+          },
+          "response_body_size_bytes": {
+            "type": "integer",
+            "format": "int64",
+            "example": 16,
+            "nullable": true
+          },
+          "requested_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "RFC 3339, UTC, up to microsecond precision.",
+            "example": "2026-10-27T12:30:00.123456Z"
+          }
+        }
+      },
+      "SearchResult": {
+        "type": "object",
+        "description": "Artifact metadata; fetch headers and bodies with GET /api/v1/http/artifacts/{id}.",
+        "required": [
+          "id",
+          "http_method",
+          "hostname",
+          "endpoint_path",
+          "full_url",
+          "requested_at",
+          "response_status_code",
+          "response_content_type",
+          "response_body_size_bytes"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
+          },
+          "http_method": {
+            "type": "string",
+            "example": "POST"
+          },
+          "hostname": {
+            "type": "string",
+            "example": "api.example.com"
+          },
+          "endpoint_path": {
+            "type": "string",
+            "example": "/v1/resource"
+          },
+          "full_url": {
+            "type": "string",
+            "example": "https://api.example.com/v1/resource"
+          },
+          "requested_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "RFC 3339, UTC, up to microsecond precision.",
+            "example": "2026-10-27T12:30:00.123456Z"
+          },
+          "response_status_code": {
+            "type": "integer",
+            "example": 200,
+            "nullable": true
+          },
+          "response_content_type": {
+            "type": "string",
+            "example": "application/json",
+            "nullable": true
+          },
+          "response_body_size_bytes": {
+            "type": "integer",
+            "format": "int64",
+            "example": 128,
+            "nullable": true
+          }
+        }
+      },
+      "Domain": {
+        "type": "object",
+        "required": [
+          "hostname",
+          "artifact_count",
+          "last_requested_at"
+        ],
+        "properties": {
+          "hostname": {
+            "type": "string",
+            "example": "api.example.com"
+          },
+          "artifact_count": {
+            "type": "integer",
+            "format": "int64",
+            "example": 42
+          },
+          "last_requested_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "RFC 3339, UTC, up to microsecond precision.",
+            "example": "2026-10-27T12:30:00.123456Z"
+          }
+        }
+      },
+      "SortOrder": {
+        "type": "string",
+        "enum": [
+          "ASC",
+          "DESC"
+        ],
+        "description": "Case-insensitive on input; returned upper-case."
+      },
+      "ArtifactListMeta": {
+        "type": "object",
+        "required": [
+          "sort_by",
+          "sort_order",
+          "hostname",
+          "limit",
+          "next_cursor"
+        ],
+        "properties": {
+          "sort_by": {
+            "type": "string",
+            "enum": [
+              "http_method",
+              "full_url",
+              "response_status_code",
+              "response_content_type",
+              "response_body_size_bytes",
+              "requested_at"
+            ]
+          },
+          "sort_order": {
+            "$ref": "#/components/schemas/SortOrder"
+          },
+          "hostname": {
+            "type": "string",
+            "description": "Applied hostname filter, or null.",
+            "nullable": true
+          },
+          "limit": {
+            "type": "integer",
+            "example": 30
+          },
+          "next_cursor": {
+            "type": "string",
+            "description": "Pass as `cursor` to fetch the next page; null on the last page.",
+            "nullable": true
+          }
+        }
+      },
+      "ArtifactList": {
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ArtifactSummary"
+            }
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ArtifactListMeta"
+          }
+        }
+      },
+      "SearchMeta": {
+        "type": "object",
+        "required": [
+          "query",
+          "limit"
+        ],
+        "properties": {
+          "query": {
+            "type": "string",
+            "example": "secret"
+          },
+          "limit": {
+            "type": "integer",
+            "example": 30
+          }
+        }
+      },
+      "SearchResponse": {
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SearchResult"
+            }
+          },
+          "meta": {
+            "$ref": "#/components/schemas/SearchMeta"
+          }
+        }
+      },
+      "DomainMeta": {
+        "type": "object",
+        "required": [
+          "sort_by",
+          "sort_order",
+          "limit"
+        ],
+        "properties": {
+          "sort_by": {
+            "type": "string",
+            "enum": [
+              "total_artifacts",
+              "latest_update"
+            ]
+          },
+          "sort_order": {
+            "$ref": "#/components/schemas/SortOrder"
+          },
+          "limit": {
+            "type": "integer",
+            "example": 100
+          }
+        }
+      },
+      "DomainList": {
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Domain"
+            }
+          },
+          "meta": {
+            "$ref": "#/components/schemas/DomainMeta"
+          }
+        }
+      },
+      "DomainInfo": {
+        "type": "object",
+        "required": [
+          "hostname",
+          "root_domain",
+          "asn",
+          "asn_name",
+          "waf",
+          "updated_at"
+        ],
+        "properties": {
+          "hostname": {
+            "type": "string",
+            "example": "www.example.com"
+          },
+          "root_domain": {
+            "type": "string",
+            "example": "example.com"
+          },
+          "asn": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true,
+            "example": 13335
+          },
+          "asn_name": {
+            "type": "string",
+            "nullable": true,
+            "example": "CLOUDFLARENET"
+          },
+          "waf": {
+            "type": "boolean",
+            "nullable": true,
+            "description": "null when WAF detection has not produced a result."
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "RFC 3339, UTC.",
+            "example": "2026-10-27T12:30:00Z"
+          }
+        }
+      },
+      "DNSRecord": {
+        "type": "object",
+        "required": [
+          "hostname",
+          "record_type",
+          "record_value",
+          "ttl",
+          "updated_at"
+        ],
+        "properties": {
+          "hostname": {
+            "type": "string",
+            "example": "www.example.com"
+          },
+          "record_type": {
+            "type": "string",
+            "example": "A"
+          },
+          "record_value": {
+            "type": "string",
+            "example": "192.0.2.10"
+          },
+          "ttl": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true,
+            "example": 300
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "RFC 3339, UTC.",
+            "example": "2026-10-27T12:30:00Z"
+          }
+        }
+      },
+      "DNSRecordMeta": {
+        "type": "object",
+        "required": [
+          "hostname",
+          "total"
+        ],
+        "properties": {
+          "hostname": {
+            "type": "string"
+          },
+          "total": {
+            "type": "integer"
+          }
+        }
+      },
+      "DNSRecordList": {
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DNSRecord"
+            }
+          },
+          "meta": {
+            "$ref": "#/components/schemas/DNSRecordMeta"
+          }
+        }
+      },
+      "Subdomain": {
+        "type": "object",
+        "required": [
+          "hostname"
+        ],
+        "properties": {
+          "hostname": {
+            "type": "string",
+            "example": "api.example.com"
+          }
+        }
+      },
+      "SubdomainMeta": {
+        "type": "object",
+        "required": [
+          "root_domain",
+          "total"
+        ],
+        "properties": {
+          "root_domain": {
+            "type": "string"
+          },
+          "total": {
+            "type": "integer"
+          }
+        }
+      },
+      "SubdomainList": {
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Subdomain"
+            }
+          },
+          "meta": {
+            "$ref": "#/components/schemas/SubdomainMeta"
+          }
+        }
+      },
+      "RootDomain": {
+        "type": "object",
+        "required": [
+          "root_domain",
+          "hostname_count"
+        ],
+        "properties": {
+          "root_domain": {
+            "type": "string",
+            "example": "example.com"
+          },
+          "hostname_count": {
+            "type": "integer",
+            "format": "int64",
+            "example": 2
+          }
+        }
+      },
+      "RootDomainMeta": {
+        "type": "object",
+        "required": [
+          "limit"
+        ],
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "example": 100
+          }
+        }
+      },
+      "RootDomainList": {
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RootDomain"
+            }
+          },
+          "meta": {
+            "$ref": "#/components/schemas/RootDomainMeta"
+          }
+        }
+      }
+    },
+    "parameters": {
+      "ArtifactId": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "description": "Artifact UUID in canonical 8-4-4-4-12 form (case-insensitive).",
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "example": "550e8400-e29b-41d4-a716-446655440000"
+      },
+      "Limit": {
+        "name": "limit",
+        "in": "query",
+        "description": "Maximum number of results.",
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 30
+        }
+      },
+      "SortOrder": {
+        "name": "sort_order",
+        "in": "query",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "ASC",
+            "DESC"
+          ],
+          "default": "DESC"
+        },
+        "description": "Sort direction (case-insensitive)."
+      }
+    },
+    "responses": {
+      "BadRequest": {
+        "description": "Malformed JSON or invalid parameter.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "examples": {
+              "validation": {
+                "value": {
+                  "error": {
+                    "code": "validation_error",
+                    "message": "limit: must be an integer between 1 and 100",
+                    "field": "limit"
+                  }
+                }
+              },
+              "malformed": {
+                "value": {
+                  "error": {
+                    "code": "bad_request",
+                    "message": "request body contains malformed JSON"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "Unauthorized": {
+        "description": "Missing or invalid API key.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "examples": {
+              "unauthorized": {
+                "value": {
+                  "error": {
+                    "code": "unauthorized",
+                    "message": "missing or invalid API key"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "headers": {
+          "WWW-Authenticate": {
+            "schema": {
+              "type": "string",
+              "example": "Bearer realm=\"reconvault\""
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "No artifact with this ID.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "examples": {
+              "not_found": {
+                "value": {
+                  "error": {
+                    "code": "not_found",
+                    "message": "artifact not found"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "InternalError": {
+        "description": "Unexpected server error. Details are logged, never returned.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "examples": {
+              "internal": {
+                "value": {
+                  "error": {
+                    "code": "internal_error",
+                    "message": "internal server error"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,46 @@
+# --- Secrets and local environment ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+
+# --- Database dumps (may contain recorded credentials) ---
+/backup*.sql
+*.dump
+
+# --- Dependencies ---
+node_modules/
+
+# --- Build output and caches ---
+dist/
+build/
+coverage/
+*.tsbuildinfo
+.vite/
+.eslintcache
+*.test
+*.out
+/reconvault-api/reconvault-api
+/reconvault-api/bin/
+*.local
+
+# --- Logs and temporary files ---
+*.log
+npm-debug.log*
+*.tmp
+*.swp
+*~
+
+# --- Editors and OS ---
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# --- Local tooling state (never part of the project) ---
+CLAUDE.md
+.claude/
+.playwright-mcp/
