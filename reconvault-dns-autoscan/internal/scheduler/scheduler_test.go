@@ -40,7 +40,7 @@ type fakeStore struct {
 	pendingDomain []string
 	pendingDNS    []string
 	scanned       []string
-	incomplete    []string
+	domains       []string
 	upserted      []string
 	applied       []string
 	failUpsert    map[string]bool
@@ -77,8 +77,8 @@ func page(all []string, after string, limit int) []string {
 func (f *fakeStore) ScannedDNSTargets(_ context.Context, after string, limit int) ([]string, error) {
 	return page(f.scanned, after, limit), nil
 }
-func (f *fakeStore) IncompleteDomains(_ context.Context, after string, limit int) ([]string, error) {
-	return page(f.incomplete, after, limit), nil
+func (f *fakeStore) ScannedDomains(_ context.Context, after string, limit int) ([]string, error) {
+	return page(f.domains, after, limit), nil
 }
 func (f *fakeStore) UpsertDomain(_ context.Context, d domainscan.Domain) error {
 	f.mu.Lock()
@@ -198,8 +198,8 @@ func TestConcurrencyIsBounded(t *testing.T) {
 
 func TestRunDailyPagesEverythingAndRecordsCompletion(t *testing.T) {
 	st := &fakeStore{
-		scanned:    []string{"a.test", "b.test", "c.test", "d.test", "e.test"},
-		incomplete: []string{"x.test", "y.test", "z.test"},
+		scanned: []string{"a.test", "b.test", "c.test", "d.test", "e.test"},
+		domains: []string{"x.test", "y.test", "z.test"},
 	}
 	s, d, _ := newScheduler(st, Options{BatchSize: 2, Concurrency: 2})
 	if err := s.RunDaily(context.Background()); err != nil {
@@ -208,8 +208,11 @@ func TestRunDailyPagesEverythingAndRecordsCompletion(t *testing.T) {
 	if got := sorted(st.applied); !slices.Equal(got, st.scanned) {
 		t.Fatalf("refreshed %v", got)
 	}
+	if got := sorted(st.upserted); !slices.Equal(got, st.domains) {
+		t.Fatalf("domains refreshed %v", got)
+	}
 	if d.calls.Load() != 3 || st.started != 1 || st.completed != 1 {
-		t.Fatalf("domains retried %d, started %d, completed %d", d.calls.Load(), st.started, st.completed)
+		t.Fatalf("domain scans %d, started %d, completed %d", d.calls.Load(), st.started, st.completed)
 	}
 }
 

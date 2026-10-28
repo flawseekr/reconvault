@@ -247,16 +247,17 @@ func TestDuplicateValuesInAVersionAreRejected(t *testing.T) {
 	}
 }
 
-func TestIncompleteDomains(t *testing.T) {
+func TestScannedDomains(t *testing.T) {
 	s, pool := setup(t)
+	// Complete and incomplete rows alike are refreshed daily.
 	exec(t, pool, `INSERT INTO domains (hostname, root_domain, asn, asn_name, waf) VALUES
 		('a.test', 'a.test', 1, 'X', true), ('b.test', 'b.test', NULL, NULL, true),
 		('c.test', 'c.test', 2, 'Y', NULL), ('d.test', 'd.test', NULL, NULL, NULL)`)
-	got, err := s.IncompleteDomains(context.Background(), "", 10)
-	if err != nil || !slices.Equal(got, []string{"b.test", "c.test", "d.test"}) {
+	got, err := s.ScannedDomains(context.Background(), "", 10)
+	if err != nil || !slices.Equal(got, []string{"a.test", "b.test", "c.test", "d.test"}) {
 		t.Fatalf("got %v, %v", got, err)
 	}
-	if got, _ := s.IncompleteDomains(context.Background(), "b.test", 1); !slices.Equal(got, []string{"c.test"}) {
+	if got, _ := s.ScannedDomains(context.Background(), "b.test", 1); !slices.Equal(got, []string{"c.test"}) {
 		t.Errorf("keyset page: %v", got)
 	}
 }

@@ -24,7 +24,7 @@ type Store interface {
 	PendingDomainHosts(ctx context.Context, limit int) ([]string, error)
 	PendingDNSTargets(ctx context.Context, limit int) ([]string, error)
 	ScannedDNSTargets(ctx context.Context, after string, limit int) ([]string, error)
-	IncompleteDomains(ctx context.Context, after string, limit int) ([]string, error)
+	ScannedDomains(ctx context.Context, after string, limit int) ([]string, error)
 	UpsertDomain(ctx context.Context, d domainscan.Domain) error
 	ApplyDNSOutcomes(ctx context.Context, host string, outcomes []dnsscan.Outcome, now time.Time) (store.ApplyResult, error)
 	LastCompleted(ctx context.Context, job string) (*time.Time, error)
@@ -173,8 +173,9 @@ func (s *Scheduler) RunActive(ctx context.Context) error {
 	return nil
 }
 
-// RunDaily refreshes the DNS records of every scanned target and retries
-// domains whose ASN or WAF status is unknown.
+// RunDaily refreshes the DNS records of every scanned target, then the root
+// domain, ASN and WAF status of every domain. UpsertDomain keeps a
+// previously verified ASN or WAF value when a rescan can't determine it.
 func (s *Scheduler) RunDaily(ctx context.Context) error {
 	started := s.now()
 	if err := s.store.JobStarted(ctx, jobDaily, started); err != nil {
@@ -184,11 +185,11 @@ func (s *Scheduler) RunDaily(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	domains, err := s.pages(ctx, s.store.IncompleteDomains, s.scanDomain)
+	domains, err := s.pages(ctx, s.store.ScannedDomains, s.scanDomain)
 	if err != nil {
 		return err
 	}
-	s.log.Info("daily refresh completed", "dns_targets", records, "domains_retried", domains, "duration", s.now().Sub(started).Round(time.Second))
+	s.log.Info("daily refresh completed", "dns_targets", records, "domains", domains, "duration", s.now().Sub(started).Round(time.Second))
 	return s.store.JobCompleted(ctx, jobDaily, s.now())
 }
 

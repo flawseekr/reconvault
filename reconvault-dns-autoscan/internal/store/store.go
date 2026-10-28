@@ -61,12 +61,12 @@ func (s *Store) ScannedDNSTargets(ctx context.Context, after string, limit int) 
 		LIMIT $2`, after, limit)
 }
 
-// IncompleteDomains pages through domains whose ASN or WAF status is still
-// unknown, so transient failures are retried.
-func (s *Store) IncompleteDomains(ctx context.Context, after string, limit int) ([]string, error) {
+// ScannedDomains pages through every hostname in domains after the given
+// one (keyset pagination), for the daily root domain, ASN and WAF refresh.
+func (s *Store) ScannedDomains(ctx context.Context, after string, limit int) ([]string, error) {
 	return s.strings(ctx, `
 		SELECT hostname FROM domains
-		WHERE (asn IS NULL OR waf IS NULL) AND hostname > $1
+		WHERE hostname > $1
 		ORDER BY hostname
 		LIMIT $2`, after, limit)
 }

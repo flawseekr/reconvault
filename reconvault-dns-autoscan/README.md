@@ -15,7 +15,7 @@ operation.
 | Mode | When | Does |
 | ---- | ---- | ---- |
 | **Active** | At startup, then every `ACTIVE_INTERVAL` (1 min) | (1) Hostnames in `http_artifacts` without a `domains` row are domain-scanned. (2) Hostnames and root domains in `domains` that were never DNS-scanned get a DNS scan. |
-| **Daily** | Every day at **00:00 UTC** | Re-scans the DNS records of every scanned target, inserting only record sets that changed. Retries domains whose ASN or WAF status is still unknown. |
+| **Daily** | Every day at **00:00 UTC** | Re-scans the DNS records of every scanned target, inserting only record sets that changed. Then re-scans the root domain, ASN and WAF status of every domain, so a host that moves to another network or adds or drops a WAF is updated within a day. |
 
 - **Missed runs:** if the service was down at midnight, the daily run happens
   at the next start. The last completion is stored in `autoscan_jobs`.
