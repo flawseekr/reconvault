@@ -12,7 +12,7 @@ it serves the dashboard at `/` and proxies the API at `/api/`, `/readyz` and
 | ----- | ---- | --------- |
 | `/` | Search bar, "Probe a URL" bar, latest 50 HTTP artifacts, recently probed HTTP hosts, root domains | `GET /api/v1/http/artifacts?limit=50`, `GET /api/v1/http/domains`, `GET /api/v1/root_domains`, `POST /api/v1/http/request` |
 | `/search?q=…` | Full-field search | `GET /api/v1/http/artifacts/search` |
-| `/host/:hostname` | Domain info (root domain, WAF, ASN), the host's HTTP artifacts with paging, then its DNS history | `GET /api/v1/domains/{hostname}`, `GET /api/v1/dns_records/{hostname}`, `GET /api/v1/http/artifacts?hostname=…`, `GET /api/v1/http/domains` |
+| `/host/:hostname` | Domain info (root domain, WAF, ASN), a summary (hostname, artifact count, last request), the host's HTTP artifacts with paging (endpoint shown as path and query), then its DNS history | `GET /api/v1/domains/{hostname}`, `GET /api/v1/dns_records/{hostname}`, `GET /api/v1/http/artifacts?hostname=…`, `GET /api/v1/http/domains` |
 | `/subdomain/:root_domain` | Unique hostnames under a root domain, each linking to its host page | `GET /api/v1/subdomains/{root_domain}` |
 | `/http/:id` | One artifact: overview, request, parsed response, raw response | `GET /api/v1/http/artifacts/{id}` |
 
@@ -84,8 +84,8 @@ browser ──► nginx (this image, host APP_BIND:APP_PORT) ──/api/, /ready
     survives refreshes. A shared deep link to a later page shows "Page —",
     and Previous returns to page 1.
 - **Hosts.** `GET /api/v1/http/domains` returns up to 100 hosts, most recent
-  first. Home shows 12 with a "Show all" toggle. The Host page shows a host's
-  artifact count and last request time when the host is in that list.
+  first. Home shows 12 with a "Show all" toggle. The Host page's summary shows
+  a host's artifact count and last request time when the host is in that list.
 - **Domain info and DNS history.** A hostname the DNS autoscan hasn't scanned
   yet shows "Not scanned yet". Missing WAF or ASN values show "Unknown". The
   DNS history lists each record type and value once (newest first): the API

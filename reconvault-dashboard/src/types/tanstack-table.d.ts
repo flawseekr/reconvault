@@ -7,4 +7,10 @@ declare module "@tanstack/react-table" {
     className?: string;
     align?: "left" | "right";
   }
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  interface TableMeta<TData extends RowData> {
+    /** "path" shows only path and query in the Endpoint column (host page). */
+    endpointDisplay?: "url" | "path";
+  }
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { formatBytes, formatExactUtc, formatRelative, middleTruncate, statusClass } from "@/lib/formatters";
+import { formatBytes, formatExactUtc, formatRelative, middleTruncate, statusClass, urlPathAndQuery } from "@/lib/formatters";
 
 describe("formatBytes", () => {
   it.each([
@@ -50,6 +50,25 @@ describe("statusClass", () => {
     [500, "5xx"],
     [599, "5xx"],
   ] as const)("%s -> %s", (code, want) => expect(statusClass(code)).toBe(want));
+});
+
+describe("urlPathAndQuery", () => {
+  it("drops scheme, host and fragment", () => {
+    expect(urlPathAndQuery("https://example.com/api/v1/users")).toBe("/api/v1/users");
+    expect(urlPathAndQuery("http://example.com:8080/a/b#top")).toBe("/a/b");
+  });
+  it("keeps the query string", () => {
+    expect(urlPathAndQuery("https://example.com/promos/?type=Semua")).toBe("/promos/?type=Semua");
+    expect(urlPathAndQuery("https://example.com?x=1")).toBe("/?x=1");
+  });
+  it("returns / for root and path-less URLs", () => {
+    expect(urlPathAndQuery("https://example.com/")).toBe("/");
+    expect(urlPathAndQuery("https://example.com")).toBe("/");
+  });
+  it("falls back to the stored path for unparseable input", () => {
+    expect(urlPathAndQuery("not a url", "/stored")).toBe("/stored");
+    expect(urlPathAndQuery("not a url")).toBe("/");
+  });
 });
 
 describe("middleTruncate", () => {

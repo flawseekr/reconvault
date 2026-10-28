@@ -6,7 +6,7 @@ import { MethodBadge } from "@/components/artifacts/MethodBadge";
 import { StatusBadge } from "@/components/artifacts/StatusBadge";
 import { TimestampDisplay } from "@/components/artifacts/TimestampDisplay";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { middleTruncate } from "@/lib/formatters";
+import { middleTruncate, urlPathAndQuery } from "@/lib/formatters";
 import { artifactPath } from "@/lib/routes";
 import type { ArtifactSortField, ArtifactSummary } from "@/types/api";
 
@@ -27,8 +27,9 @@ export const artifactColumns: ColumnDef<ArtifactSummary>[] = [
     header: "Endpoint",
     accessorFn: (row) => row.full_url,
     sortingFn: "text",
-    cell: ({ row }) => {
+    cell: ({ row, table }) => {
       const a = row.original;
+      const shown = table.options.meta?.endpointDisplay === "path" ? urlPathAndQuery(a.full_url) : a.full_url;
       return (
         <div className="flex min-w-0 items-center gap-2.5">
           <MethodBadge method={a.http_method} />
@@ -40,7 +41,7 @@ export const artifactColumns: ColumnDef<ArtifactSummary>[] = [
                 aria-label={`${a.http_method} ${a.full_url}`}
                 className="min-w-0 truncate rounded-sm font-mono text-[13px] text-foreground/90 outline-none hover:text-primary focus-visible:ring-2 focus-visible:ring-ring/60"
               >
-                {middleTruncate(a.full_url, URL_DISPLAY_CHARS)}
+                {middleTruncate(shown, URL_DISPLAY_CHARS)}
               </Link>
             </TooltipTrigger>
             <TooltipContent align="start">

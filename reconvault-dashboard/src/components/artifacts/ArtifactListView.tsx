@@ -21,6 +21,7 @@ interface ArtifactListViewProps {
   emptyDescription?: ReactNode;
   /** Rendered on errors in addition to the retry button (e.g. reset paging). */
   errorAction?: ReactNode;
+  endpointDisplay?: "url" | "path";
 }
 
 /** Artifact table with the shared loading, error and empty states. */

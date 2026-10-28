@@ -60,22 +60,21 @@ function HostArtifacts({ hostname }: { hostname: string }) {
 
   return (
     <>
-      <PageHeader
-        mono
-        title={hostname}
-        breadcrumbs={[{ label: "Home", to: routes.home }, { label: hostname }]}
-        description={
-          domain ? (
-            <span className="inline-flex flex-wrap items-center gap-x-1.5">
-              {formatInteger(domain.artifact_count)} {domain.artifact_count === 1 ? "artifact" : "artifacts"} · last request{" "}
-              <TimestampDisplay value={domain.last_requested_at} variant="relative" />
-            </span>
-          ) : undefined
-        }
-      />
+      {/* The breadcrumb and the summary below Domain info show the hostname. */}
+      <PageHeader hideTitle title={hostname} breadcrumbs={[{ label: "Home", to: routes.home }, { label: hostname }]} />
 
       <div className="grid gap-6">
         <DomainInfoPanel hostname={hostname} />
+
+        <div className="grid min-w-0 gap-1 rounded-xl border border-border bg-card px-4 py-3">
+          <p className="font-mono text-base font-semibold break-all">{hostname}</p>
+          {domain && (
+            <p className="flex flex-wrap items-center gap-x-1.5 text-sm text-muted-foreground">
+              {formatInteger(domain.artifact_count)} {domain.artifact_count === 1 ? "artifact" : "artifacts"} · Last request{" "}
+              <TimestampDisplay value={domain.last_requested_at} variant="relative" />
+            </p>
+          )}
+        </div>
 
         <Panel id="host-artifacts" title="HTTP artifacts" description="All recorded requests to this host" flush>
           <ArtifactListView
@@ -87,6 +86,7 @@ function HostArtifacts({ hostname }: { hostname: string }) {
             sort={sort}
             onSortChange={setSort}
             sortMode="server"
+            endpointDisplay="path"
             caption={`HTTP artifacts for ${hostname}`}
             emptyTitle={pagination.cursor ? "No more artifacts" : "No artifacts for this host"}
             emptyDescription={pagination.cursor ? undefined : "Probe a URL on this host from Home to record one."}

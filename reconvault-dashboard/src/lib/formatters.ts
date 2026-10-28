@@ -82,6 +82,20 @@ export function statusClass(code: number | null | undefined): StatusClass {
 }
 
 /** Shortens a URL for display while keeping host and path tail readable. */
+/**
+ * Path and query of a URL ("https://a.com/x?y=1" → "/x?y=1"), without the
+ * scheme, host or fragment. A URL with no path yields "/"; unparseable input
+ * yields `fallbackPath`, or "/".
+ */
+export function urlPathAndQuery(url: string, fallbackPath?: string): string {
+  try {
+    const { pathname, search } = new URL(url);
+    return `${pathname || "/"}${search}`;
+  } catch {
+    return fallbackPath || "/";
+  }
+}
+
 export function middleTruncate(text: string, max: number): string {
   if (text.length <= max) return text;
   const keepEnd = Math.floor((max - 1) * 0.4);

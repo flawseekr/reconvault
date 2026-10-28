@@ -34,11 +34,13 @@ interface ArtifactTableProps {
   empty: ReactNode;
   /** Dims rows while a new page or sort order is loading. */
   isUpdating?: boolean;
+  /** "path" drops scheme and host from the Endpoint column (all rows share one host). */
+  endpointDisplay?: "url" | "path";
 }
 
 const INTERACTIVE = "a, button, input, select, textarea, [role='button'], [data-row-ignore]";
 
-export function ArtifactTable({ data, sort, onSortChange, sortMode, caption, empty, isUpdating }: ArtifactTableProps) {
+export function ArtifactTable({ data, sort, onSortChange, sortMode, caption, empty, isUpdating, endpointDisplay = "url" }: ArtifactTableProps) {
   const navigate = useNavigate();
   const sorting: SortingState = [{ id: sort.sortBy, desc: sort.sortOrder === "DESC" }];
 
@@ -53,6 +55,7 @@ export function ArtifactTable({ data, sort, onSortChange, sortMode, caption, emp
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: sortMode === "client" ? getSortedRowModel() : undefined,
     getRowId: (row) => row.id,
+    meta: { endpointDisplay },
   });
 
   function toggleSort(id: ArtifactColumnId) {

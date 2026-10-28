@@ -23,9 +23,11 @@ interface PageHeaderProps {
   actions?: ReactNode;
   /** Render the title in monospace (hostnames, IDs). */
   mono?: boolean;
+  /** Keep the h1 for assistive technology when the page shows the title elsewhere. */
+  hideTitle?: boolean;
 }
 
-export function PageHeader({ title, description, breadcrumbs, actions, mono }: PageHeaderProps) {
+export function PageHeader({ title, description, breadcrumbs, actions, mono, hideTitle }: PageHeaderProps) {
   return (
     <header className="mb-6 grid gap-2">
       {breadcrumbs && breadcrumbs.length > 0 && (
@@ -50,7 +52,7 @@ export function PageHeader({ title, description, breadcrumbs, actions, mono }: P
           </BreadcrumbList>
         </Breadcrumb>
       )}
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className={cn("flex flex-wrap items-start justify-between gap-3", hideTitle && "sr-only")}>
         <div className="min-w-0">
           <h1 className={cn("text-xl font-semibold tracking-tight break-all", mono && "font-mono text-lg")}>{title}</h1>
           {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}

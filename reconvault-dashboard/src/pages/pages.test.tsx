@@ -82,12 +82,20 @@ describe("HostPage", () => {
     expect(await screen.findByRole("heading", { name: "api.example.com" })).toBeInTheDocument();
     expect(seen[0]?.get("hostname")).toBe("api.example.com");
     expect(seen[0]?.get("limit")).toBe("25");
-    expect(await screen.findByText(/3 artifacts/)).toBeInTheDocument();
+    const summaryLine = await screen.findByText(/3 artifacts · Last request/);
+    expect(summaryLine.previousElementSibling).toHaveTextContent("api.example.com");
+    // Rows show the path only; the link still names the full URL.
+    expect(await screen.findByText("/v1/resource")).toBeInTheDocument();
+    expect(screen.queryByText("https://api.example.com/v1/resource")).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "GET https://api.example.com/v1/resource" })).toHaveAttribute(
+      "href",
+      `/http/${summary().id}`,
+    );
     expect(screen.getByText(/Page 1/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Previous page" })).toBeDisabled();
 
     await user.click(screen.getByRole("button", { name: "Next page" }));
-    expect(await screen.findByText("https://api.example.com/page2")).toBeInTheDocument();
+    expect(await screen.findByText("/page2")).toBeInTheDocument();
     expect(router.state.location.search).toBe("?cursor=c2");
     expect(screen.getByText(/Page 2/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Next page" })).toBeDisabled();
@@ -272,9 +280,11 @@ describe("HostPage recon sections", () => {
     expect(within(rows[2]!).getByText(dnsRecord().record_value)).toBeInTheDocument();
     expect(within(dns).getByText("2 records, newest first")).toBeInTheDocument();
 
-    // Placement: Domain info, then HTTP artifacts, then DNS history.
+    // Placement: Domain info, host summary, HTTP artifacts, then DNS history.
     const artifacts = screen.getByRole("region", { name: "HTTP artifacts" });
-    expect(info.compareDocumentPosition(artifacts) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const summaryHost = within(info.parentElement!).getByText("www.example.com", { selector: "p" });
+    expect(info.compareDocumentPosition(summaryHost) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(summaryHost.compareDocumentPosition(artifacts) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(artifacts.compareDocumentPosition(dns) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(await within(artifacts).findByText("No artifacts for this host")).toBeInTheDocument();
   });
