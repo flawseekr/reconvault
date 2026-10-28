@@ -34,7 +34,7 @@ export function ArtifactDetailPage() {
     return (
       <>
         <PageHeader title="Invalid artifact ID" breadcrumbs={[home, { label: "Artifact" }]} />
-        <NotFound title="This is not a valid artifact ID" description="Artifact IDs are UUIDs such as 550e8400-e29b-41d4-a716-446655440000." />
+        <NotFound title="This artifact ID is not valid" description="Artifact IDs are UUIDs, for example 550e8400-e29b-41d4-a716-446655440000." />
       </>
     );
   }
@@ -54,9 +54,9 @@ export function ArtifactDetailPage() {
       <>
         <PageHeader title={notFound ? "Artifact not found" : "Artifact"} breadcrumbs={[home, { label: id }]} />
         {notFound ? (
-          <NotFound title="No artifact with this ID" description="It may have been deleted, or the link is incorrect." />
+          <NotFound title="No artifact with this ID" description="It may have been deleted, or the link is wrong." />
         ) : (
-          <ErrorState error={query.error} title="Could not load the artifact" onRetry={() => void query.refetch()} />
+          <ErrorState error={query.error} title="Failed to load artifact" onRetry={() => void query.refetch()} />
         )}
       </>
     );
@@ -149,7 +149,7 @@ function ArtifactDetail({ artifact: a }: { artifact: Artifact }) {
 
           <TabsContent value="response" className="grid gap-4">
             {!response ? (
-              <Notice>No response was recorded: the request failed before a response arrived.</Notice>
+              <Notice>No response recorded. The request failed before a response arrived.</Notice>
             ) : (
               <>
                 {response.statusLine && (
@@ -158,12 +158,12 @@ function ArtifactDetail({ artifact: a }: { artifact: Artifact }) {
                 {response.headers ? (
                   <HeadersTable headers={response.headers} title="Response headers" />
                 ) : (
-                  <Notice>Response headers are not available for this artifact: it was recorded before headers were stored.</Notice>
+                  <Notice>Response headers unavailable. This artifact was recorded before headers were stored.</Notice>
                 )}
                 {responseBody && responseBody.kind !== "empty" ? (
                   <CodeViewer title="Response body" content={responseBody.display} copyValue={response.body} kind={responseBody.kind} copyLabel="Copy response body" />
                 ) : (
-                  <Notice>The response body is empty.</Notice>
+                  <Notice>Empty response body.</Notice>
                 )}
               </>
             )}
@@ -173,12 +173,12 @@ function ArtifactDetail({ artifact: a }: { artifact: Artifact }) {
             {requestHeaders ? (
               <HeadersTable headers={requestHeaders} title="Request headers" />
             ) : (
-              <Notice>No request headers were recorded.</Notice>
+              <Notice>No request headers recorded.</Notice>
             )}
             {requestBody.kind !== "empty" ? (
               <CodeViewer title="Request body" content={requestBody.display} copyValue={a.request_body ?? ""} kind={requestBody.kind} copyLabel="Copy request body" />
             ) : (
-              <Notice>{a.request_body === null ? "No request body was sent." : "The request body is empty."}</Notice>
+              <Notice>{a.request_body === null ? "No request body sent." : "Empty request body."}</Notice>
             )}
           </TabsContent>
 
@@ -186,7 +186,7 @@ function ArtifactDetail({ artifact: a }: { artifact: Artifact }) {
             {a.response !== null ? (
               <CodeViewer title="Raw response" content={a.response} kind="text" copyLabel="Copy raw response" />
             ) : (
-              <Notice>No response was recorded.</Notice>
+              <Notice>No response recorded.</Notice>
             )}
           </TabsContent>
         </Tabs>

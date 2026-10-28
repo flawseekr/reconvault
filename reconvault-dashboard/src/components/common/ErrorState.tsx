@@ -11,7 +11,7 @@ interface ErrorStateProps {
   className?: string;
 }
 
-export function ErrorState({ error, title = "Something went wrong", onRetry, className }: ErrorStateProps) {
+export function ErrorState({ error, title = "Request failed", onRetry, className }: ErrorStateProps) {
   return (
     <div role="alert" className={cn("flex flex-col items-center justify-center gap-2 px-6 py-12 text-center", className)}>
       <div className="mb-1 flex size-10 items-center justify-center rounded-lg border border-status-5xx/30 bg-status-5xx/10">

@@ -12,7 +12,7 @@ export function NotFoundPage() {
       <PageHeader title="Page not found" breadcrumbs={[{ label: "Home", to: routes.home }, { label: "Not found" }]} />
       <EmptyState
         icon={CompassIcon}
-        title="There is nothing at this address"
+        title="No page at this address"
         action={
           <Button asChild variant="outline" size="sm">
             <Link to={routes.home}>Back to Home</Link>

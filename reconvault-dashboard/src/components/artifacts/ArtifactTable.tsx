@@ -70,62 +70,56 @@ export function ArtifactTable({ data, sort, onSortChange, sortMode, caption, emp
   const rows = table.getRowModel().rows;
 
   return (
-    <Table className={cn("table-fixed transition-opacity", isUpdating && "opacity-60")} aria-busy={isUpdating || undefined}>
-      <caption className="sr-only">
-        {caption}
-        {sortMode === "client" ? " Sorting applies to the loaded results only." : ""}
-      </caption>
-      <colgroup>
-        <col />
-        <col className="hidden w-52 lg:table-column" />
-        <col className="w-20" />
-        <col className="hidden w-24 sm:table-column" />
-        <col className="hidden w-44 md:table-column" />
-      </colgroup>
-      <TableHeader className="bg-muted/25">
-        {table.getHeaderGroups().map((group) => (
-          <TableRow key={group.id} className="hover:bg-transparent">
-            {group.headers.map((header) => {
-              const id = header.column.id as ArtifactColumnId;
-              const active = id === sort.sortBy;
-              const label = String(header.column.columnDef.header);
-              const Icon = !active ? ArrowUpDownIcon : sort.sortOrder === "ASC" ? ArrowUpIcon : ArrowDownIcon;
-              return (
-                <TableHead
-                  key={header.id}
-                  aria-sort={active ? (sort.sortOrder === "ASC" ? "ascending" : "descending") : "none"}
-                  className={cn(header.column.columnDef.meta?.className, header.column.columnDef.meta?.align === "right" && "text-right")}
-                >
-                  <button
-                    type="button"
-                    onClick={() => toggleSort(id)}
-                    className={cn(
-                      "-mx-1.5 inline-flex items-center gap-1 rounded px-1.5 py-1 transition-colors outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/60",
-                      active && "text-foreground",
-                    )}
+    <>
+      <Table className={cn("table-fixed transition-opacity", isUpdating && "opacity-60")} aria-busy={isUpdating || undefined}>
+        <caption className="sr-only">
+          {caption}
+          {sortMode === "client" ? " Sorting applies to the loaded results only." : ""}
+        </caption>
+        <colgroup>
+          <col />
+          <col className="hidden w-52 xl:table-column" />
+          <col className="w-20" />
+          <col className="hidden w-24 sm:table-column" />
+          <col className="hidden w-48 md:table-column" />
+        </colgroup>
+        <TableHeader className="bg-muted/25">
+          {table.getHeaderGroups().map((group) => (
+            <TableRow key={group.id} className="hover:bg-transparent">
+              {group.headers.map((header) => {
+                const id = header.column.id as ArtifactColumnId;
+                const active = id === sort.sortBy;
+                const label = String(header.column.columnDef.header);
+                const Icon = !active ? ArrowUpDownIcon : sort.sortOrder === "ASC" ? ArrowUpIcon : ArrowDownIcon;
+                return (
+                  <TableHead
+                    key={header.id}
+                    aria-sort={active ? (sort.sortOrder === "ASC" ? "ascending" : "descending") : "none"}
+                    className={cn(header.column.columnDef.meta?.className, header.column.columnDef.meta?.align === "right" && "text-right")}
                   >
-                    {label}
-                    <Icon className={cn("size-3", !active && "opacity-40")} aria-hidden="true" />
-                    <span className="sr-only">
-                      {active ? `, sorted ${sort.sortOrder === "ASC" ? "ascending" : "descending"}. ` : ". "}
-                      Activate to sort {active && sort.sortOrder === "ASC" ? "descending" : "ascending"}.
-                    </span>
-                  </button>
-                </TableHead>
-              );
-            })}
-          </TableRow>
-        ))}
-      </TableHeader>
-      <TableBody>
-        {rows.length === 0 ? (
-          <TableRow className="hover:bg-transparent">
-            <TableCell colSpan={artifactColumns.length} className="p-0 whitespace-normal">
-              {empty}
-            </TableCell>
-          </TableRow>
-        ) : (
-          rows.map((row) => (
+                    <button
+                      type="button"
+                      onClick={() => toggleSort(id)}
+                      className={cn(
+                        "-mx-1.5 inline-flex items-center gap-1 rounded px-1.5 py-1 transition-colors outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/60",
+                        active && "text-foreground",
+                      )}
+                    >
+                      {label}
+                      <Icon className={cn("size-3", !active && "opacity-40")} aria-hidden="true" />
+                      <span className="sr-only">
+                        {active ? `, sorted ${sort.sortOrder === "ASC" ? "ascending" : "descending"}. ` : ". "}
+                        Activate to sort {active && sort.sortOrder === "ASC" ? "descending" : "ascending"}.
+                      </span>
+                    </button>
+                  </TableHead>
+                );
+              })}
+            </TableRow>
+          ))}
+        </TableHeader>
+        <TableBody>
+          {rows.map((row) => (
             <TableRow
               key={row.id}
               onClick={(e) => onRowClick(e, row.original.id)}
@@ -144,9 +138,12 @@ export function ArtifactTable({ data, sort, onSortChange, sortMode, caption, emp
                 </TableCell>
               ))}
             </TableRow>
-          ))
-        )}
-      </TableBody>
-    </Table>
+          ))}
+        </TableBody>
+      </Table>
+      {/* Outside the table: a cell spanning the responsively hidden columns
+          collapses the fixed-layout column widths. */}
+      {rows.length === 0 && empty}
+    </>
   );
 }

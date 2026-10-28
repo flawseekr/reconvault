@@ -32,7 +32,7 @@ export function HostPage() {
         <EmptyState
           icon={GlobeIcon}
           title="This hostname is not valid"
-          description="Hostnames must be 1 to 255 characters without control characters."
+          description="Use 1 to 255 characters with no control characters."
           action={
             <Button asChild variant="outline" size="sm">
               <Link to={routes.home}>Back to Home</Link>
@@ -76,9 +76,8 @@ function HostArtifacts({ hostname }: { hostname: string }) {
 
       <div className="grid gap-6">
         <DomainInfoPanel hostname={hostname} />
-        <DnsHistoryPanel hostname={hostname} />
 
-        <Panel id="host-artifacts" title="Artifacts" description="Sorted on the server across all of this host's artifacts" flush>
+        <Panel id="host-artifacts" title="HTTP artifacts" description="All recorded requests to this host" flush>
           <ArtifactListView
             rows={rows}
             isPending={list.isPending}
@@ -88,9 +87,9 @@ function HostArtifacts({ hostname }: { hostname: string }) {
             sort={sort}
             onSortChange={setSort}
             sortMode="server"
-            caption={`Artifacts for ${hostname}`}
+            caption={`HTTP artifacts for ${hostname}`}
             emptyTitle={pagination.cursor ? "No more artifacts" : "No artifacts for this host"}
-            emptyDescription={pagination.cursor ? undefined : "Nothing has been recorded for this hostname."}
+            emptyDescription={pagination.cursor ? undefined : "Probe a URL on this host from Home to record one."}
             errorAction={
               cursorRejected ? (
                 <Button variant="outline" size="sm" onClick={pagination.goFirst}>
@@ -119,6 +118,8 @@ function HostArtifacts({ hostname }: { hostname: string }) {
             </div>
           )}
         </Panel>
+
+        <DnsHistoryPanel hostname={hostname} />
       </div>
     </>
   );

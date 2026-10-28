@@ -53,7 +53,7 @@ describe("ArtifactDetailPage", () => {
   it("rejects invalid IDs without calling the API", async () => {
     const fetch = mockFetch(() => json({ status: "ok" }));
     renderRoute("/http/not-a-uuid");
-    expect(await screen.findByText("This is not a valid artifact ID")).toBeInTheDocument();
+    expect(await screen.findByText("This artifact ID is not valid")).toBeInTheDocument();
     expect(fetch.mock.calls.some(([u]) => String(u).includes("/api/v1/http/artifacts"))).toBe(false);
   });
 
@@ -169,16 +169,16 @@ describe("HomePage", () => {
     renderRoute("/");
 
     expect(await screen.findByRole("link", { name: /GET https:\/\/api\.example\.com\/v1\/resource/ })).toBeInTheDocument();
-    const hosts = await screen.findByRole("region", { name: "Recently scanned hosts" });
+    const hosts = await screen.findByRole("region", { name: "Recently probed HTTP" });
     expect(within(hosts).getByRole("link", { name: /api\.example\.com/ })).toHaveAttribute("href", "/host/api.example.com");
 
-    await user.type(screen.getByLabelText("URL to request"), "not a url");
+    await user.type(screen.getByLabelText("URL to probe"), "not a url");
     await user.click(screen.getByRole("button", { name: /send/i }));
     expect(screen.getByText("Enter an absolute http:// or https:// URL.")).toBeInTheDocument();
     expect(posted).toBeUndefined();
 
-    await user.clear(screen.getByLabelText("URL to request"));
-    await user.type(screen.getByLabelText("URL to request"), "https://example.com");
+    await user.clear(screen.getByLabelText("URL to probe"));
+    await user.type(screen.getByLabelText("URL to probe"), "https://example.com");
     await user.click(screen.getByRole("button", { name: /send/i }));
     expect(await screen.findByRole("link", { name: /view artifact/i })).toHaveAttribute("href", "/http/750e8400-e29b-41d4-a716-446655440000");
     expect(posted).toEqual({ method: "GET", url: "https://example.com" });
@@ -226,7 +226,7 @@ describe("HomePage", () => {
   it("shows a 404 page for unknown routes", async () => {
     mockFetch(() => json({ status: "ok" }));
     renderRoute("/does/not/exist");
-    expect(await screen.findByText("There is nothing at this address")).toBeInTheDocument();
+    expect(await screen.findByText("No page at this address")).toBeInTheDocument();
   });
 });
 
@@ -238,8 +238,13 @@ describe("HostPage recon sections", () => {
         return (
           overrides.dns ??
           json({
-            data: [dnsRecord({ record_value: "192.0.2.2", updated_at: "2026-10-27T12:30:00Z" }), dnsRecord({ ttl: null, updated_at: "2026-10-20T08:00:00Z" })],
-            meta: { hostname: "www.example.com", total: 2 },
+            data: [
+              dnsRecord({ record_value: "192.0.2.2", updated_at: "2026-10-27T12:30:00Z" }),
+              dnsRecord({ updated_at: "2026-10-27T12:30:00Z" }),
+              // Same type and value in an older scan version: shown once.
+              dnsRecord({ ttl: null, updated_at: "2026-10-20T08:00:00Z" }),
+            ],
+            meta: { hostname: "www.example.com", total: 3 },
           })
         );
       }
@@ -247,29 +252,30 @@ describe("HostPage recon sections", () => {
       return json({ data: [], meta: {} });
     });
 
-  it("shows domain info and the full DNS history above the artifacts", async () => {
+  it("shows domain info, then HTTP artifacts, then the DNS history", async () => {
     recon();
     renderRoute("/host/WWW.example.com");
 
     const info = await screen.findByRole("region", { name: "Domain info" });
     expect(await within(info).findByText("example.com")).toBeInTheDocument();
-    expect(within(info).getByRole("link", { name: /More subdomains under this domain/ })).toHaveAttribute("href", "/subdomain/example.com");
-    expect(within(info).getByText("WAF Present?")).toBeInTheDocument();
+    expect(within(info).getByRole("link", { name: /View subdomains/ })).toHaveAttribute("href", "/subdomain/example.com");
+    expect(within(info).getByText("WAF present")).toBeInTheDocument();
     expect(within(info).getByText("Yes")).toBeInTheDocument();
     expect(within(info).getByText("13335")).toBeInTheDocument();
     expect(within(info).getByText("CLOUDFLARENET")).toBeInTheDocument();
 
     const dns = screen.getByRole("region", { name: "DNS history" });
     const rows = await within(dns).findAllByRole("row");
-    expect(rows).toHaveLength(3); // header + 2 records, server order kept
+    expect(rows).toHaveLength(3); // header + 2 unique records, server order kept
+    expect(within(rows[0]!).getAllByRole("columnheader").map((h) => h.textContent)).toEqual(["Type", "Value"]);
     expect(within(rows[1]!).getByText("192.0.2.2")).toBeInTheDocument();
-    expect(within(rows[2]!).getByText("—")).toBeInTheDocument(); // null TTL
+    expect(within(rows[2]!).getByText(dnsRecord().record_value)).toBeInTheDocument();
     expect(within(dns).getByText("2 records, newest first")).toBeInTheDocument();
 
-    // Placement: Domain info, then DNS history, then the existing artifacts table.
-    const artifacts = screen.getByRole("region", { name: "Artifacts" });
-    expect(info.compareDocumentPosition(dns) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(dns.compareDocumentPosition(artifacts) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // Placement: Domain info, then HTTP artifacts, then DNS history.
+    const artifacts = screen.getByRole("region", { name: "HTTP artifacts" });
+    expect(info.compareDocumentPosition(artifacts) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(artifacts.compareDocumentPosition(dns) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(await within(artifacts).findByText("No artifacts for this host")).toBeInTheDocument();
   });
 
@@ -278,7 +284,7 @@ describe("HostPage recon sections", () => {
     renderRoute("/host/www.example.com");
     const info = await screen.findByRole("region", { name: "Domain info" });
     expect(await within(info).findAllByText("Unknown")).toHaveLength(2);
-    expect(within(info).getByText("No ASN name available")).toBeInTheDocument();
+    expect(within(info).getByText("No ASN name")).toBeInTheDocument();
   });
 
   it("shows No when no WAF was detected", async () => {
@@ -306,8 +312,8 @@ describe("HostPage recon sections", () => {
         : json({ data: [], meta: listMeta }),
     );
     renderRoute("/host/www.example.com");
-    expect(await screen.findByText("Could not load domain info")).toBeInTheDocument();
-    expect(await screen.findByText("Could not load DNS history")).toBeInTheDocument();
+    expect(await screen.findByText("Failed to load domain info")).toBeInTheDocument();
+    expect(await screen.findByText("Failed to load DNS history")).toBeInTheDocument();
   });
 });
 
@@ -336,13 +342,13 @@ describe("SubdomainPage", () => {
   it("shows empty and error states", async () => {
     mockFetch(() => json({ data: [], meta: { root_domain: "none.test", total: 0 } }));
     const { unmount } = renderRoute("/subdomain/none.test");
-    expect(await screen.findByText("No hostnames under this domain")).toBeInTheDocument();
+    expect(await screen.findByText("No hostnames found")).toBeInTheDocument();
     expect(screen.getByText("0 unique hostnames")).toBeInTheDocument();
     unmount();
 
     mockFetch(() => json({ error: { code: "validation_error", message: "root_domain is invalid", field: "root_domain" } }, 400));
     renderRoute("/subdomain/bad.test");
-    expect(await screen.findByText("Could not load subdomains")).toBeInTheDocument();
+    expect(await screen.findByText("Failed to load subdomains")).toBeInTheDocument();
   });
 
   it("rejects invalid root domains without calling the API", async () => {
@@ -365,13 +371,13 @@ describe("HomePage root domains overview", () => {
     home(json({ data: [{ root_domain: "example.com", hostname_count: 12 }, { root_domain: "solo.test", hostname_count: 1 }], meta: { limit: 100 } }));
     renderRoute("/");
 
-    const overview = await screen.findByRole("region", { name: "Root Domains Overview" });
+    const overview = await screen.findByRole("region", { name: "Root domains" });
     const link = await within(overview).findByRole("link", { name: /example\.com/ });
     expect(link).toHaveAttribute("href", "/subdomain/example.com");
     expect(within(link).getByText("12 hostnames")).toBeInTheDocument();
     expect(within(overview).getByText("1 hostname")).toBeInTheDocument();
 
-    const hosts = screen.getByRole("region", { name: "Recently scanned hosts" });
+    const hosts = screen.getByRole("region", { name: "Recently probed HTTP" });
     expect(hosts.compareDocumentPosition(overview) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screen.getByRole("region", { name: "HTTP artifacts" })).toBeInTheDocument();
   });
@@ -379,12 +385,12 @@ describe("HomePage root domains overview", () => {
   it("shows an empty state", async () => {
     home(json({ data: [], meta: { limit: 100 } }));
     renderRoute("/");
-    expect(await screen.findByText("No root domains yet")).toBeInTheDocument();
+    expect(await screen.findByText("No root domains found")).toBeInTheDocument();
   });
 
   it("shows an error state", async () => {
     home(json({ error: { code: "validation_error", message: "limit is invalid", field: "limit" } }, 400));
     renderRoute("/");
-    expect(await screen.findByText("Could not load root domains")).toBeInTheDocument();
+    expect(await screen.findByText("Failed to load root domains")).toBeInTheDocument();
   });
 });

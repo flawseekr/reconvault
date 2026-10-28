@@ -41,7 +41,7 @@ export function RequestBar() {
             type="url"
             inputMode="url"
             placeholder="https://example.com/path"
-            aria-label="URL to request"
+            aria-label="URL to probe"
             aria-invalid={errors.url ? true : undefined}
             aria-describedby="request-bar-status"
             autoComplete="off"
@@ -87,9 +87,7 @@ export function RequestBar() {
               View artifact <ArrowRightIcon className="size-3" />
             </Link>
           </p>
-        ) : (
-          <p className="text-muted-foreground">Sends a GET request and records the request and response.</p>
-        )}
+        ) : null}
       </div>
     </div>
   );

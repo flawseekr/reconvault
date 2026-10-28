@@ -23,13 +23,13 @@ export function HostList() {
       </div>
     );
   }
-  if (error) return <ErrorState error={error} title="Could not load hosts" onRetry={() => void refetch()} />;
+  if (error) return <ErrorState error={error} title="Failed to load hosts" onRetry={() => void refetch()} />;
   if (data.data.length === 0) {
     return (
       <EmptyState
         icon={ServerIcon}
-        title="No hosts scanned yet"
-        description="Hosts appear here after the first request to them is recorded."
+        title="No hosts found"
+        description="Hosts appear after their first probe."
       />
     );
   }

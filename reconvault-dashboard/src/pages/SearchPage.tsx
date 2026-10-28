@@ -17,8 +17,6 @@ import { validateSearchQuery } from "@/lib/validation";
 const RESULT_LIMITS = [10, 30, 50, 100] as const;
 const DEFAULT_LIMIT = 30;
 
-const SEARCHABLE = "IDs, methods, hostnames, paths, URLs, timestamps, status codes, content types, sizes, request headers and bodies, and raw responses (response headers and bodies).";
-
 export function SearchPage() {
   const [params, setParams] = useSearchParams();
   const q = params.get("q") ?? "";
@@ -45,7 +43,7 @@ export function SearchPage() {
       <PageHeader
         title="Search"
         breadcrumbs={[{ label: "Home", to: routes.home }, { label: "Search" }]}
-        description="Case-insensitive substring search across every field of every artifact."
+        description="Case-insensitive substring match across all artifact fields"
       />
 
       <div className="grid gap-6">
@@ -57,8 +55,8 @@ export function SearchPage() {
         ) : !activeQuery ? (
           <EmptyState
             icon={SearchIcon}
-            title="Search recorded artifacts"
-            description={`Matches ${SEARCHABLE} Special characters such as %, _ and \\ match literally.`}
+            title="Search HTTP artifacts"
+            description="Matches URLs, headers, bodies, status codes, IDs and timestamps. %, _ and \ match literally."
           />
         ) : (
           <Panel
@@ -76,8 +74,8 @@ export function SearchPage() {
             }
             description={
               rows && rows.length === limit
-                ? `Showing the ${limit} most recent matches. Refine the term or raise the limit to see more.`
-                : "Newest first. Column sorting applies to the loaded results."
+                ? `Showing the ${limit} newest matches. Narrow the query or raise the limit.`
+                : "Newest first. Sorting applies to these results only."
             }
             actions={
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -108,7 +106,7 @@ export function SearchPage() {
               sortMode="client"
               caption={`Search results for ${activeQuery}`}
               emptyTitle="No matches"
-              emptyDescription="No artifact contains this text in any field."
+              emptyDescription="No artifact contains this text."
             />
           </Panel>
         )}

@@ -23,7 +23,7 @@ export function SubdomainPage() {
         <EmptyState
           icon={GlobeIcon}
           title="This root domain is not valid"
-          description="Root domains must be 1 to 255 characters without control characters."
+          description="Use 1 to 255 characters with no control characters."
           action={
             <Button asChild variant="outline" size="sm">
               <Link to={routes.home}>Back to Home</Link>
@@ -45,10 +45,10 @@ function Subdomains({ rootDomain }: { rootDomain: string }) {
   if (isPending) {
     body = <TableSkeleton rows={6} columns={2} />;
   } else if (error) {
-    body = <ErrorState error={error} title="Could not load subdomains" onRetry={() => void refetch()} />;
+    body = <ErrorState error={error} title="Failed to load subdomains" onRetry={() => void refetch()} />;
   } else if (!hosts || hosts.length === 0) {
     body = (
-      <EmptyState icon={GlobeIcon} title="No hostnames under this domain" description="The DNS autoscan has not recorded any hostname for it." />
+      <EmptyState icon={GlobeIcon} title="No hostnames found" description="DNS autoscan hasn't recorded any hostname under this domain." />
     );
   } else {
     body = (
@@ -65,7 +65,7 @@ function Subdomains({ rootDomain }: { rootDomain: string }) {
               <TableCell className="max-w-0">
                 <Link
                   to={hostPath(h.hostname)}
-                  className="block truncate font-mono text-[13px] text-primary underline-offset-4 hover:underline focus-visible:underline focus-visible:outline-none"
+                  className="block truncate rounded-sm font-mono text-[13px] text-primary underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring/60"
                   title={h.hostname}
                 >
                   {h.hostname}

@@ -31,7 +31,7 @@ export function ArtifactListView(props: ArtifactListViewProps) {
   if (error && !rows) {
     return (
       <div>
-        <ErrorState error={error} title="Could not load artifacts" onRetry={onRetry} />
+        <ErrorState error={error} title="Failed to load artifacts" onRetry={onRetry} />
         {errorAction && <div className="-mt-8 flex justify-center pb-8">{errorAction}</div>}
       </div>
     );

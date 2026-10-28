@@ -10,9 +10,9 @@ it serves the dashboard at `/` and proxies the API at `/api/`, `/readyz` and
 
 | Route | Page | API calls |
 | ----- | ---- | --------- |
-| `/` | Search bar, "Request a URL" bar, latest 50 artifacts, recently scanned hosts, Root Domains Overview | `GET /api/v1/http/artifacts?limit=50`, `GET /api/v1/http/domains`, `GET /api/v1/root_domains`, `POST /api/v1/http/request` |
+| `/` | Search bar, "Probe a URL" bar, latest 50 HTTP artifacts, recently probed HTTP hosts, root domains | `GET /api/v1/http/artifacts?limit=50`, `GET /api/v1/http/domains`, `GET /api/v1/root_domains`, `POST /api/v1/http/request` |
 | `/search?q=…` | Full-field search | `GET /api/v1/http/artifacts/search` |
-| `/host/:hostname` | Domain info (root domain, WAF, ASN), full DNS history, then the host's artifacts with paging | `GET /api/v1/domains/{hostname}`, `GET /api/v1/dns_records/{hostname}`, `GET /api/v1/http/artifacts?hostname=…`, `GET /api/v1/http/domains` |
+| `/host/:hostname` | Domain info (root domain, WAF, ASN), the host's HTTP artifacts with paging, then its DNS history | `GET /api/v1/domains/{hostname}`, `GET /api/v1/dns_records/{hostname}`, `GET /api/v1/http/artifacts?hostname=…`, `GET /api/v1/http/domains` |
 | `/subdomain/:root_domain` | Unique hostnames under a root domain, each linking to its host page | `GET /api/v1/subdomains/{root_domain}` |
 | `/http/:id` | One artifact: overview, request, parsed response, raw response | `GET /api/v1/http/artifacts/{id}` |
 
@@ -88,8 +88,9 @@ browser ──► nginx (this image, host APP_BIND:APP_PORT) ──/api/, /ready
   artifact count and last request time when the host is in that list.
 - **Domain info and DNS history.** A hostname the DNS autoscan hasn't scanned
   yet shows "Not scanned yet". Missing WAF or ASN values show "Unknown". The
-  DNS history is the complete, unpaginated list (newest first) and scrolls
-  inside a fixed-height area.
+  DNS history lists each record type and value once (newest first): the API
+  returns one row per scan version, so repeats of an unchanged record are
+  collapsed. The list is unpaginated and scrolls inside a fixed-height area.
 - **Root domains.** Home lists up to 100 root domains (the API default),
   largest first, each linking to its subdomain page.
 - **Raw responses.** `response` holds the status line, headers and body; the
@@ -155,10 +156,10 @@ never writes into the working tree. The tests cover:
 - **Pages**, through the real router and providers with a mocked `fetch`:
   artifact detail (captured HTML never rendered, legacy and failed artifacts,
   invalid and unknown IDs); host filtering and cursor paging; domain info
-  (Yes/No/Unknown, not scanned yet) and DNS history placed above the
-  artifacts; the subdomain page (totals, encoded links, empty, error and
-  invalid states); the Root Domains Overview below the existing Home
-  sections; search URL state and validation; the API-key gate without
+  (Yes/No/Unknown, not scanned yet), and the DNS history (type and value
+  only, repeats collapsed) placed below the HTTP artifacts; the subdomain page
+  (totals, encoded links, empty, error and invalid states); the root domains
+  list below the other Home sections; search URL state and validation; the API-key gate without
   request loops; the URL-submit flow; the 404 page.
 
 ## Production image

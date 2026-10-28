@@ -57,7 +57,7 @@ export const artifactColumns: ColumnDef<ArtifactSummary>[] = [
     accessorFn: (row) => row.response_content_type ?? undefined,
     sortUndefined: "last",
     sortingFn: "text",
-    meta: { className: "hidden lg:table-cell" },
+    meta: { className: "hidden xl:table-cell" },
     cell: ({ row }) => {
       const ct = row.original.response_content_type;
       return ct ? (

@@ -24,14 +24,14 @@ export function HomePage() {
 
   return (
     <>
-      <PageHeader title="Overview" description="Recorded HTTP exchanges and the hosts they target." />
+      <PageHeader title="Overview" description="Monitor hosts, HTTP responses and DNS records." />
 
       <div className="grid gap-6">
-        <div className="grid gap-4 lg:grid-cols-2">
-          <Panel title="Search" description="Case-insensitive search across URLs, headers and bodies.">
+        <div className="grid gap-6 xl:grid-cols-2">
+          <Panel title="Search" description="Case-insensitive match on URLs, headers and bodies">
             <SearchBar onSearch={(q) => navigate(searchPath(q))} />
           </Panel>
-          <Panel title="Request a URL" description="POST /api/v1/http/request">
+          <Panel title="Probe a URL" description="Sends a GET request and records the response">
             <RequestBar />
           </Panel>
         </div>
@@ -39,7 +39,7 @@ export function HomePage() {
         <Panel
           id="artifacts"
           title="HTTP artifacts"
-          description={`Latest ${HOME_LIMIT} by the selected sort order`}
+          description={`Latest ${HOME_LIMIT}, sorted by the selected column`}
           flush
           actions={
             <Button
@@ -62,17 +62,17 @@ export function HomePage() {
             sort={sort}
             onSortChange={setSort}
             sortMode="server"
-            caption="Recorded HTTP artifacts"
+            caption="HTTP artifacts"
             emptyTitle="No artifacts yet"
-            emptyDescription="Request a URL above to record the first exchange."
+            emptyDescription="Probe a URL above to record one."
           />
         </Panel>
 
-        <Panel id="hosts" title="Recently scanned hosts" description="Most recently requested first">
+        <Panel id="hosts" title="Recently probed HTTP" description="Hosts, most recently probed first">
           <HostList />
         </Panel>
 
-        <Panel id="root-domains" title="Root Domains Overview" description="Unique hostnames per root domain, from the DNS autoscan">
+        <Panel id="root-domains" title="Root domains" description="Unique hostnames per root domain, from DNS autoscan">
           <RootDomainList />
         </Panel>
       </div>

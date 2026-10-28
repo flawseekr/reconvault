@@ -21,9 +21,9 @@ export function DomainInfoPanel({ hostname }: { hostname: string }) {
   let body: ReactNode;
   if (isPending) {
     body = (
-      <div role="status" aria-label="Loading domain info" className="grid gap-3 sm:grid-cols-3">
+      <div role="status" aria-label="Loading domain info" className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         {Array.from({ length: 3 }, (_, i) => (
-          <Skeleton key={i} className="h-[92px] rounded-lg" />
+          <Skeleton key={i} className={cn("h-[92px] rounded-lg", i === 0 && "col-span-2 sm:col-span-1")} />
         ))}
       </div>
     );
@@ -32,12 +32,12 @@ export function DomainInfoPanel({ hostname }: { hostname: string }) {
       <EmptyState
         icon={RadarIcon}
         title="Not scanned yet"
-        description="The DNS autoscan has no record of this hostname. Domain info appears after its next run."
+        description="DNS autoscan hasn't resolved this hostname. Domain info appears after its next run."
         className="py-6"
       />
     );
   } else if (error) {
-    body = <ErrorState error={error} title="Could not load domain info" onRetry={() => void refetch()} className="py-6" />;
+    body = <ErrorState error={error} title="Failed to load domain info" onRetry={() => void refetch()} className="py-6" />;
   } else {
     body = <DomainStats domain={data} />;
   }
@@ -55,21 +55,21 @@ export function DomainInfoPanel({ hostname }: { hostname: string }) {
 
 function DomainStats({ domain }: { domain: DomainInfo }) {
   return (
-    <dl className="grid gap-3 sm:grid-cols-3">
-      <Stat label="Root domain">
-        <dd className="truncate font-mono text-xl font-semibold" title={domain.root_domain}>
+    <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+      <Stat label="Root domain" className="col-span-2 sm:col-span-1">
+        <dd className="truncate font-mono text-lg font-semibold sm:text-xl" title={domain.root_domain}>
           {domain.root_domain}
         </dd>
         <dd>
           <Link
             to={subdomainPath(domain.root_domain)}
-            className="inline-flex items-center gap-1 text-xs text-primary underline-offset-4 hover:underline focus-visible:underline focus-visible:outline-none"
+            className="inline-flex items-center gap-1 rounded-sm text-xs text-primary underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring/60"
           >
-            More subdomains under this domain <ArrowRightIcon className="size-3" aria-hidden="true" />
+            View subdomains <ArrowRightIcon className="size-3" aria-hidden="true" />
           </Link>
         </dd>
       </Stat>
-      <Stat label="WAF Present?">
+      <Stat label="WAF present">
         <dd
           className={cn(
             "text-xl font-semibold",
@@ -83,17 +83,17 @@ function DomainStats({ domain }: { domain: DomainInfo }) {
         <dd className={cn("font-mono text-xl font-semibold tabular-nums", domain.asn === null && "text-muted-foreground")}>
           {domain.asn === null ? "Unknown" : domain.asn}
         </dd>
-        <dd className="truncate text-xs text-muted-foreground" title={domain.asn_name ?? undefined}>
-          {domain.asn_name ?? "No ASN name available"}
+        <dd className="line-clamp-2 text-xs break-words text-muted-foreground" title={domain.asn_name ?? undefined}>
+          {domain.asn_name ?? "No ASN name"}
         </dd>
       </Stat>
     </dl>
   );
 }
 
-function Stat({ label, children }: { label: string; children: ReactNode }) {
+function Stat({ label, children, className }: { label: string; children: ReactNode; className?: string }) {
   return (
-    <div className="grid min-w-0 content-start gap-1 rounded-lg border border-border bg-muted/20 px-4 py-3">
+    <div className={cn("grid min-w-0 content-start gap-1 rounded-lg border border-border bg-muted/20 px-4 py-3", className)}>
       <dt className="text-xs text-muted-foreground">{label}</dt>
       {children}
     </div>

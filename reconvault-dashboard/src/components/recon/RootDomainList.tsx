@@ -21,13 +21,13 @@ export function RootDomainList() {
       </div>
     );
   }
-  if (error) return <ErrorState error={error} title="Could not load root domains" onRetry={() => void refetch()} />;
+  if (error) return <ErrorState error={error} title="Failed to load root domains" onRetry={() => void refetch()} />;
   if (data.data.length === 0) {
     return (
       <EmptyState
         icon={NetworkIcon}
-        title="No root domains yet"
-        description="Root domains appear here once the DNS autoscan has scanned a hostname."
+        title="No root domains found"
+        description="Root domains appear after DNS autoscan resolves a hostname."
       />
     );
   }
