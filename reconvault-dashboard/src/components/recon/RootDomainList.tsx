@@ -8,26 +8,26 @@ import { useRootDomains } from "@/features/recon/api";
 import { formatInteger } from "@/lib/formatters";
 import { subdomainPath } from "@/lib/routes";
 
-/** Root domains with their unique hostname counts, largest first. */
+/** Available subdomains grouped by root domain, largest group first. */
 export function RootDomainList() {
   const { data, error, isPending, refetch } = useRootDomains();
 
   if (isPending) {
     return (
-      <div role="status" aria-label="Loading root domains" className="flex flex-wrap gap-2">
+      <div role="status" aria-label="Loading subdomains" className="flex flex-wrap gap-2">
         {Array.from({ length: 6 }, (_, i) => (
           <Skeleton key={i} className="h-9 w-40 rounded-lg" />
         ))}
       </div>
     );
   }
-  if (error) return <ErrorState error={error} title="Failed to load root domains" onRetry={() => void refetch()} />;
+  if (error) return <ErrorState error={error} title="Failed to load subdomains" onRetry={() => void refetch()} />;
   if (data.data.length === 0) {
     return (
       <EmptyState
         icon={NetworkIcon}
-        title="No root domains found"
-        description="Root domains appear after DNS autoscan resolves a hostname."
+        title="No subdomains found"
+        description="Subdomains appear after DNS autoscan resolves a hostname."
       />
     );
   }
@@ -44,7 +44,7 @@ export function RootDomainList() {
               {d.root_domain}
             </span>
             <span className="inline-flex shrink-0 items-center rounded border border-border bg-muted/40 px-1.5 font-mono text-[11px] tabular-nums text-muted-foreground">
-              {formatInteger(d.hostname_count)} {d.hostname_count === 1 ? "hostname" : "hostnames"}
+              {formatInteger(d.hostname_count)} {d.hostname_count === 1 ? "subdomain" : "subdomains"}
             </span>
           </Link>
         </li>

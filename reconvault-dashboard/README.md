@@ -10,10 +10,10 @@ it serves the dashboard at `/` and proxies the API at `/api/`, `/readyz` and
 
 | Route | Page | API calls |
 | ----- | ---- | --------- |
-| `/` | Search bar, "Probe a URL" bar, latest 50 HTTP artifacts, recently probed HTTP hosts, root domains | `GET /api/v1/http/artifacts?limit=50`, `GET /api/v1/http/domains`, `GET /api/v1/root_domains`, `POST /api/v1/http/request` |
+| `/` | Search bar, "Probe a URL" bar, latest 50 HTTP artifacts, recently probed HTTP hosts, available subdomains (grouped by root domain) | `GET /api/v1/http/artifacts?limit=50`, `GET /api/v1/http/domains`, `GET /api/v1/root_domains`, `POST /api/v1/http/request` |
 | `/search?q=…` | Full-field search | `GET /api/v1/http/artifacts/search` |
 | `/host/:hostname` | Domain info (root domain, WAF, ASN), a summary (hostname, artifact count, last request), the host's HTTP artifacts with paging (endpoint shown as path and query), then its DNS history | `GET /api/v1/domains/{hostname}`, `GET /api/v1/dns_records/{hostname}`, `GET /api/v1/http/artifacts?hostname=…`, `GET /api/v1/http/domains` |
-| `/subdomain/:root_domain` | Unique hostnames under a root domain, each linking to its host page | `GET /api/v1/subdomains/{root_domain}` |
+| `/subdomain/:root_domain` | Available subdomains under a root domain, each linking to its host page | `GET /api/v1/subdomains/{root_domain}` |
 | `/http/:id` | One artifact: overview, request, parsed response, raw response | `GET /api/v1/http/artifacts/{id}` |
 
 Every page also polls `GET /readyz` every 30 s for the status indicator. All
@@ -91,8 +91,9 @@ browser ──► nginx (this image, host APP_BIND:APP_PORT) ──/api/, /ready
   DNS history lists each record type and value once (newest first): the API
   returns one row per scan version, so repeats of an unchanged record are
   collapsed. The list is unpaginated and scrolls inside a fixed-height area.
-- **Root domains.** Home lists up to 100 root domains (the API default),
-  largest first, each linking to its subdomain page.
+- **Available subdomains.** Home groups subdomains by root domain: up to 100
+  groups (the API default), largest first, each linking to its subdomain
+  page.
 - **Raw responses.** `response` holds the status line, headers and body; the
   detail page splits it into those parts. Artifacts recorded before the API's
   raw-response migration hold only the body, and the page says headers are
@@ -158,9 +159,9 @@ never writes into the working tree. The tests cover:
   invalid and unknown IDs); host filtering and cursor paging; domain info
   (Yes/No/Unknown, not scanned yet), and the DNS history (type and value
   only, repeats collapsed) placed below the HTTP artifacts; the subdomain page
-  (totals, encoded links, empty, error and invalid states); the root domains
-  list below the other Home sections; search URL state and validation; the API-key gate without
-  request loops; the URL-submit flow; the 404 page.
+  (totals, encoded links, empty, error and invalid states); available
+  subdomains below the other Home sections; search URL state and validation;
+  the API-key gate without request loops; the URL-submit flow; the 404 page.
 
 ## Production image
 

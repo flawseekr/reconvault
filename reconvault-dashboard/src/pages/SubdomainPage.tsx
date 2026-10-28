@@ -19,10 +19,10 @@ export function SubdomainPage() {
   if (!isValidHostnameParam(raw)) {
     return (
       <>
-        <PageHeader title="Invalid root domain" breadcrumbs={[{ label: "Home", to: routes.home }, { label: "Root domain" }]} />
+        <PageHeader title="Invalid domain" breadcrumbs={[{ label: "Home", to: routes.home }, { label: "Subdomains" }]} />
         <EmptyState
           icon={GlobeIcon}
-          title="This root domain is not valid"
+          title="This domain is not valid"
           description="Use 1 to 255 characters with no control characters."
           action={
             <Button asChild variant="outline" size="sm">
@@ -48,15 +48,15 @@ function Subdomains({ rootDomain }: { rootDomain: string }) {
     body = <ErrorState error={error} title="Failed to load subdomains" onRetry={() => void refetch()} />;
   } else if (!hosts || hosts.length === 0) {
     body = (
-      <EmptyState icon={GlobeIcon} title="No hostnames found" description="DNS autoscan hasn't recorded any hostname under this domain." />
+      <EmptyState icon={GlobeIcon} title="No subdomains found" description="DNS autoscan hasn't recorded any subdomain under this domain." />
     );
   } else {
     body = (
       <Table>
-        <caption className="sr-only">Hostnames under {rootDomain}</caption>
+        <caption className="sr-only">Subdomains of {rootDomain}</caption>
         <TableHeader className="bg-muted/25">
           <TableRow className="hover:bg-transparent">
-            <TableHead>Hostname</TableHead>
+            <TableHead>Subdomain</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -85,10 +85,10 @@ function Subdomains({ rootDomain }: { rootDomain: string }) {
         title={rootDomain}
         breadcrumbs={[{ label: "Home", to: routes.home }, { label: rootDomain }]}
         description={
-          data ? `${formatInteger(data.meta.total)} unique ${data.meta.total === 1 ? "hostname" : "hostnames"}` : undefined
+          data ? `${formatInteger(data.meta.total)} available ${data.meta.total === 1 ? "subdomain" : "subdomains"}` : undefined
         }
       />
-      <Panel id="subdomains" title="Hostnames" description="Sorted alphabetically" flush>
+      <Panel id="subdomains" title="Subdomains" description="Sorted alphabetically" flush>
         {body}
       </Panel>
     </>

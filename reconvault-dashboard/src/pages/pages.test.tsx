@@ -328,7 +328,7 @@ describe("HostPage recon sections", () => {
 });
 
 describe("SubdomainPage", () => {
-  it("lists unique hostnames with a total and links to each host", async () => {
+  it("lists available subdomains with a total and links to each host", async () => {
     let requested = "";
     mockFetch((url) => {
       if (url.pathname.startsWith("/api/v1/subdomains/")) {
@@ -344,7 +344,7 @@ describe("SubdomainPage", () => {
 
     expect(await screen.findByRole("heading", { name: "example.com" })).toBeInTheDocument();
     expect(requested).toBe("/api/v1/subdomains/example.com");
-    expect(await screen.findByText("2 unique hostnames")).toBeInTheDocument();
+    expect(await screen.findByText("2 available subdomains")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "api.example.com" })).toHaveAttribute("href", "/host/api.example.com");
     expect(screen.getByRole("link", { name: "we ird/host.example.com" })).toHaveAttribute("href", "/host/we%20ird%2Fhost.example.com");
   });
@@ -352,8 +352,8 @@ describe("SubdomainPage", () => {
   it("shows empty and error states", async () => {
     mockFetch(() => json({ data: [], meta: { root_domain: "none.test", total: 0 } }));
     const { unmount } = renderRoute("/subdomain/none.test");
-    expect(await screen.findByText("No hostnames found")).toBeInTheDocument();
-    expect(screen.getByText("0 unique hostnames")).toBeInTheDocument();
+    expect(await screen.findByText("No subdomains found")).toBeInTheDocument();
+    expect(screen.getByText("0 available subdomains")).toBeInTheDocument();
     unmount();
 
     mockFetch(() => json({ error: { code: "validation_error", message: "root_domain is invalid", field: "root_domain" } }, 400));
@@ -361,15 +361,15 @@ describe("SubdomainPage", () => {
     expect(await screen.findByText("Failed to load subdomains")).toBeInTheDocument();
   });
 
-  it("rejects invalid root domains without calling the API", async () => {
+  it("rejects invalid domains without calling the API", async () => {
     const fetch = mockFetch(() => json({ status: "ok" }));
     renderRoute(`/subdomain/${"a".repeat(256)}`);
-    expect(await screen.findByText("This root domain is not valid")).toBeInTheDocument();
+    expect(await screen.findByText("This domain is not valid")).toBeInTheDocument();
     expect(fetch.mock.calls.some(([u]) => String(u).includes("/api/v1/subdomains"))).toBe(false);
   });
 });
 
-describe("HomePage root domains overview", () => {
+describe("HomePage available subdomains", () => {
   const home = (rootDomains: Response) =>
     mockFetch((url) => {
       if (url.pathname === "/api/v1/root_domains") return rootDomains;
@@ -377,15 +377,15 @@ describe("HomePage root domains overview", () => {
       return json({ data: [domain()], meta: {} });
     });
 
-  it("lists root domains with counts below the existing sections", async () => {
+  it("lists subdomain groups with counts below the existing sections", async () => {
     home(json({ data: [{ root_domain: "example.com", hostname_count: 12 }, { root_domain: "solo.test", hostname_count: 1 }], meta: { limit: 100 } }));
     renderRoute("/");
 
-    const overview = await screen.findByRole("region", { name: "Root domains" });
+    const overview = await screen.findByRole("region", { name: "Available subdomains" });
     const link = await within(overview).findByRole("link", { name: /example\.com/ });
     expect(link).toHaveAttribute("href", "/subdomain/example.com");
-    expect(within(link).getByText("12 hostnames")).toBeInTheDocument();
-    expect(within(overview).getByText("1 hostname")).toBeInTheDocument();
+    expect(within(link).getByText("12 subdomains")).toBeInTheDocument();
+    expect(within(overview).getByText("1 subdomain")).toBeInTheDocument();
 
     const hosts = screen.getByRole("region", { name: "Recently probed HTTP" });
     expect(hosts.compareDocumentPosition(overview) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -395,12 +395,12 @@ describe("HomePage root domains overview", () => {
   it("shows an empty state", async () => {
     home(json({ data: [], meta: { limit: 100 } }));
     renderRoute("/");
-    expect(await screen.findByText("No root domains found")).toBeInTheDocument();
+    expect(await screen.findByText("No subdomains found")).toBeInTheDocument();
   });
 
   it("shows an error state", async () => {
     home(json({ error: { code: "validation_error", message: "limit is invalid", field: "limit" } }, 400));
     renderRoute("/");
-    expect(await screen.findByText("Failed to load root domains")).toBeInTheDocument();
+    expect(await screen.findByText("Failed to load subdomains")).toBeInTheDocument();
   });
 });

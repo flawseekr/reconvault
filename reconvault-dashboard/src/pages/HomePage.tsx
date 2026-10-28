@@ -72,7 +72,7 @@ export function HomePage() {
           <HostList />
         </Panel>
 
-        <Panel id="root-domains" title="Root domains" description="Unique hostnames per root domain, from DNS autoscan">
+        <Panel id="available-subdomains" title="Available subdomains" description="Subdomains found by DNS autoscan, grouped by root domain">
           <RootDomainList />
         </Panel>
       </div>
